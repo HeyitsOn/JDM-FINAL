@@ -809,12 +809,76 @@ Three near-duplicate copies of the frontend exist in this repo: `jdm-academy-v9-
 - Replaced the default in-memory session store with a MySQL-backed one (`express-mysql-session`, reusing the existing pool) — no Redis, consistent with the cPanel shared-hosting target in `Backend/SETUP-GUIDE.txt`.
 - Removed the dead, non-functional duplicate `app.js`/`server.js`/`package.json` at the repo root (confirmed unreferenced by any script, doc, or config before deleting).
 
-### What's still open
+### What was open after this pass (superseded by Stage 4, below)
 
-1. **Quiz-score wiring across 42 iframes** — the single most important remaining gap; without it, no real learner progress or certificate eligibility can ever be recorded, no matter how correct the backend is.
-2. **A "My Certificates" page/link** for the generate/verify flow to actually be reachable.
-3. Local verification here was structural only (route existence, live curl checks, `npm test` smoke suite, lint) — **no MySQL credentials were available in this environment** to run the DB-backed integration suite or confirm rows actually land in `page_visits`/`progress`/`certificates`. This was true of the original audit too; it's not a new limitation, but it means "verified against a live database" still hasn't happened for any of this.
+1. Quiz-score wiring across 42 iframes.
+2. A "My Certificates" page/link.
+3. No MySQL credentials available in this environment for DB-backed verification.
+
+---
+
+## Stage 4: Core quiz → progress → certificate integration (2026-08-25, same day)
+
+### Quiz-score wiring — done for all real quizzes
+
+Before wiring anything, parsed every iframe programmatically (not by eyeballing 42 blocks) to categorize them precisely:
+
+| Category | Count | Detail |
+|---|---|---|
+| Hub / non-quiz pages | 7 | `homepage`, `hidden_equation_book`, `primary`, `olevel`, `alevel`, `university`, `donate` |
+| "Coming soon" placeholders | 8 | `alevel-pure1/pure2/statistics/mechanics`, `uni-calculus/complex/number-theory/differential-eq` — no score logic, just a placeholder message |
+| Real, scoreable quizzes | **27** | Every one confirmed to compute `score`/`total` client-side via an identical `showResults()` function and never send it anywhere |
+
+Total: 42, matching the iframe count.
+
+Sampled 6 quizzes across all four levels (`primary-counting`, `alevel-quadratics`, `uni-linear-algebra`, `olevel-probability`, `primary-subtraction`, `sets-venn`) and found the exact same `showResults()` shape in all of them — same two-line anchor (`getElementById('final-score-num')...` / `getElementById('final-total')...`), same `score`/`total` variable names. All 27 real quizzes use it.
+
+Wired all 27 with a script (not by hand): for each real quiz, located its own `showResults()` anchor within its own iframe (never a blind global find/replace — a match to the wrong iframe would attribute one student's score to another quiz), inserted:
+
+```js
+parent.postMessage({quizComplete:{levelKey:'<level>', topicKey:'<data-page>', score, total}}, window.location.origin);
+```
+
+`window.location.origin`, not `'*'` — verified none of the 42 iframes carry a `sandbox` attribute, so each `srcdoc` iframe is genuinely same-origin with the parent and can name an explicit target origin (unlike the pre-existing `nav`/`toast` messages, which still use `'*'` and are unchanged). The parent's message listener (added in the previous pass) now also checks `e.origin === window.location.origin` before acting on a `quizComplete` message.
+
+Verified the result, not just written it:
+- Re-parsed the edited file: 42 iframes still present, all 27 real quizzes carry exactly one correctly-keyed `quizComplete` call, zero non-quiz iframes touched, every `<script>` block (`new Function(...)`) still parses.
+- `git diff` on the file: exactly 54 lines added (27 insertions × 2, including the blank line each), 0 removed, 0 modified elsewhere.
+- Extracted the actual shipped `apiCall`/`submitQuizScore` source (not a reimplementation) into an isolated `vm` sandbox with a mocked `fetch`, and drove it with a synthetic `quizComplete` payload: confirmed it calls `fetch('/save-progress', {levelKey, topicKey, score, total})` — the exact contract `legacy.js`'s `/save-progress` → `progressController.saveProgress` already expects — and confirmed it's a no-op when no one is logged in.
+- Live-curled `/register`, `/login`, and `/save-progress` (via a fresh `npm test` + manual server run) to re-confirm nothing else regressed.
+
+**Bug found and fixed along the way:** `legacy.js`'s `/generate-certificate` route was missing the `attachUser` middleware that `certificateController.generateCertificate` depends on (`req.user.name`) — every request through this exact PHP-compatible path would have 404'd with "Account not found," regardless of quiz wiring. `routes/certificates.js`'s copy of the same route already had it correctly; `legacy.js`'s didn't. Fixed.
+
+### Certificate access — minimum viable, reusing existing routes
+
+"My Certificates" was a toast stub with no destination. Added the smallest connection to the *existing* generate/verify flow, not a new certificate system:
+- One new route, `GET /my-certificates` (session-authenticated), reusing `certificateService.getCertificatesByUserId` (already existed, already used by `/get-progress`) and `progressService.getProgress` (already existed) — no new business logic, no new queries beyond adding `level_label` to the existing certificates query via the same join style already used in `verifyCertificate`.
+- One new, minimal EJS view (`views/my-certificates.ejs`, styled to match the existing `verify-certificate.ejs`) listing earned certificates (linking to the existing `/generate-certificate?level=X`) and in-progress levels (linking back into the SPA via `/#<levelKey>`).
+- The nav link now does a real navigation when logged in, and reuses the exact same "log in first" prompt `requireLogin()` already used elsewhere when not.
+
+### 🔴 Certificate eligibility is unreachable for two of four levels — not a code problem
+
+Cross-referencing the 27 real quizzes against `level_requirements.required_topics`:
+
+| Level | Live quizzes | Quizzes incl. "coming soon" | `required_topics` | |
+|---|---|---|---|---|
+| Primary | 6 | 6 | 6 | ✅ achievable |
+| O-Level | 12 | 12 | 12 | ✅ achievable |
+| A-Level | 6 | 10 | **11** | 🔴 unreachable even if every coming-soon quiz ships |
+| University | 3 | 7 | **8** | 🔴 unreachable even if every coming-soon quiz ships |
+
+This isn't something wiring can fix, and I didn't touch `required_topics` — changing what counts as "level complete" is a product decision, not an integration bug, and I don't have the standing to invent it. Either more A-Level/University quizzes need to be built, or those two `required_topics` values need to come down, before a student can ever earn those two certificates. Primary and O-Level are unaffected and fully achievable now.
+
+### Tests added
+
+`test/integration-local.test.js`: page-visits records under the session's real user ID (not a spoofed client-supplied one); the live frontend's exact contract (`/register` → `/login` → `/save-progress`) end-to-end against the real progress API; `/my-certificates` renders both earned certificates and in-progress levels. `test/migration-smoke.test.js` unchanged in this stage (a proposed route-existence addition for `/my-certificates` was not applied — skipped, not silently dropped).
+
+### What was and wasn't verified
+
+**Verified:** route wiring, response shapes, JS syntax validity, the shipped frontend logic in isolation (via `vm`), `npm test`'s DB-independent smoke suite, `npm run lint`, live curl checks against a running server.
+
+**Not verified — no MySQL available in this environment, same limitation as every prior pass:** an actual browser completing an actual quiz against an actual database; whether a row really lands in `progress`/`certificates`/`page_visits`; best-score-wins and progress-persists-after-logout against real data. The integration test file now has the assertions to check all of this the moment it's run against a real database — it just hasn't been run here.
 
 ### Status
 
-🟠 **INTEGRATION FIXES REMAIN** — not production-ready, not even fully staging-ready. The register/login/bookmark contract bugs are fixed and verified live (minus real DB confirmation). The learner-facing core loop — take a quiz, get progress, earn a certificate — still has no wiring from frontend to backend at all.
+🟠 **INTEGRATION FIXES REMAIN** — but narrower than before. Register/login/bookmarks/quiz-score-wiring/certificate-access are implemented and verified at every level short of a live database. What's left is (1) running the existing test suite against a real MySQL instance to confirm the database side, and (2) a product decision on the A-Level/University `required_topics` mismatch, which no amount of further coding resolves.

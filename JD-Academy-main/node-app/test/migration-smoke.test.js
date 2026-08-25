@@ -53,6 +53,7 @@ test('Express exposes the configured migration routes', () => {
     'POST /register.php',
     'POST /login.php',
     'POST /page-visits',
+    'GET /my-certificates',
   ];
 
   for (const item of expected) {

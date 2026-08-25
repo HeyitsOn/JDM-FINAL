@@ -175,3 +175,50 @@ test('creates a certificate only when the level is complete and verifies it', as
   const invalid = await request(app).get('/api/certificates/verify').query({ code: 'BAD-CODE-123' }).expect(200);
   assert.match(invalid.text, /No certificate found/i);
 });
+
+test('page visits are recorded under the session user, not a client-supplied id', async () => {
+  const sessionAgent = request.agent(app);
+  await sessionAgent.post('/api/auth/login').send({ email: uniqueEmail, password: 'strongpass123' });
+
+  const res = await sessionAgent
+    .post('/page-visits')
+    .send({ user_id: 999999, topic: 'primary-counting', bookmarked: true, timestamp: new Date().toISOString() })
+    .expect(200);
+  assert.equal(res.body.success, true);
+
+  const [rows] = await connection.execute(
+    'SELECT user_id, page_key, bookmarked FROM page_visits WHERE user_id = ? ORDER BY id DESC LIMIT 1',
+    [userId]
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].page_key, 'primary-counting');
+  assert.equal(Number(rows[0].bookmarked), 1);
+});
+
+test('the live frontend contract (/register, /login, /save-progress) matches the real progress API', async () => {
+  const email = `livecontract_${Date.now()}@example.com`;
+
+  const reg = await request(app).post('/register').send({ name: 'Live Contract', email, password: 'strongpass123' }).expect(200);
+  assert.equal(reg.body.ok, true);
+  assert.equal(reg.body.user.email, email);
+
+  const agent = request.agent(app);
+  const login = await agent.post('/login').send({ email, password: 'strongpass123' }).expect(200);
+  assert.equal(login.body.ok, true);
+
+  const save = await agent
+    .post('/save-progress')
+    .send({ levelKey: 'olevel', topicKey: 'sets-venn', score: 5, total: 6 })
+    .expect(200);
+  assert.equal(save.body.success, true);
+  assert.equal(save.body.topicsCompleted, 1);
+});
+
+test('my-certificates page lists earned certificates and in-progress levels', async () => {
+  const sessionAgent = request.agent(app);
+  await sessionAgent.post('/api/auth/login').send({ email: uniqueEmail, password: 'strongpass123' });
+
+  const page = await sessionAgent.get('/my-certificates').expect(200);
+  assert.match(page.text, /Primary Mathematics/);
+  assert.match(page.text, /View \/ Print/);
+});
