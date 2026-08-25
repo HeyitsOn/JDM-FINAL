@@ -1,30 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const authService = require('../services/authService');
+const { registerCompat, loginCompat } = require('../controllers/frontendCompatController');
+const { authLimiter } = require('../middleware/rateLimiter');
 
-// The shipped frontend (public/index.html) calls these exact paths with
-// an { ok, user, error } response envelope instead of the { success, message }
-// envelope used by routes/auth.js and routes/legacy.js. These routes adapt
-// the same authService to the contract the frontend already expects.
+// Kept for the /api-prefixed, .php-suffixed contract used by the reference
+// copies of the frontend (Frontend/Landingpage.html, jdm-academy-v9-cleaned.html).
+// The copy actually deployed at node-app/public/index.html calls
+// /register and /login instead (see routes/legacy.js), but both variants
+// expect the same { ok, user, error } envelope from registerCompat/loginCompat.
 
-router.post('/register.php', async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-    const result = await authService.register(req, { name, email, password });
-    res.status(200).json({ ok: true, user: result.user });
-  } catch (err) {
-    res.status(err.status || 500).json({ ok: false, error: err.message });
-  }
-});
-
-router.post('/login.php', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const result = await authService.login(req, { email, password });
-    res.status(200).json({ ok: true, user: result.user });
-  } catch (err) {
-    res.status(err.status || 500).json({ ok: false, error: err.message });
-  }
-});
+router.post('/register.php', authLimiter, registerCompat);
+router.post('/login.php', authLimiter, loginCompat);
 
 module.exports = router;

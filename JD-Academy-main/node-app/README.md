@@ -34,7 +34,12 @@ It is intentionally separated from the PHP implementation to preserve the refere
    ```bash
    cp .env.example .env
    ```
-4. Start the server in development mode:
+4. Import the schema, then the Node-only addition on top of it:
+   ```bash
+   mysql -u <user> -p <database> < ../Backend/schema.sql
+   mysql -u <user> -p <database> < migrations/001_page_visits.sql
+   ```
+5. Start the server in development mode:
    ```bash
    npm run dev
    ```
@@ -53,5 +58,7 @@ A successful response looks like:
 
 ## Notes
 
-- The Node app is a scaffold and migration-in-progress; authentication, progress, and certificate logic are being migrated.
-- Existing PHP files remain untouched in `Backend/`.
+- Authentication, progress tracking, and certificate logic are implemented and route-tested (see `test/`). Existing PHP files remain untouched in `Backend/` as the reference implementation.
+- Sessions are stored in MySQL (`express-mysql-session`, reusing the app's own pool) rather than the `express-session` default in-memory store.
+- `/register`, `/login`, `/page-visits`, `/api/register.php`, `/api/login.php` are rate-limited (`middleware/rateLimiter.js`).
+- See `MIGRATION_AUDIT.md`'s 2026-08-25 addendum for the current, verified state of frontend↔backend integration — notably, quiz scores are not yet wired end-to-end from the quiz UI.

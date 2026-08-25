@@ -33569,7 +33569,21 @@ window.addEventListener('message', e=>{
     show(nav);
   }
   if(e.data.toast_icon && e.data.toast_msg) toast(e.data.toast_icon, e.data.toast_msg);
+  // Contract for quiz iframes to report a finished attempt (not yet sent by any
+  // quiz -- each quiz's "finish" handler still needs its own postMessage call
+  // added, e.g. parent.postMessage({quizComplete:{levelKey:'primary',
+  // topicKey:'primary-counting', score, total}}, '*')). This listener is the
+  // receiving half of that wiring.
+  if(e.data.quizComplete) submitQuizScore(e.data.quizComplete);
 });
+
+async function submitQuizScore({ levelKey, topicKey, score, total }){
+  if(!currentUser) return;
+  const result = await apiCall('/save-progress', { levelKey, topicKey, score, total });
+  if(result && result.success && result.levelComplete){
+    toast('🏅','Level complete! Your certificate is ready — check My Certificates.');
+  }
+}
 window.addEventListener('hashchange', fromHash);
 
 // ===================================================
@@ -33744,7 +33758,7 @@ async function submitLogin(){
 
 async function apiSaveVisit(page, bookmarked=false){
   if(!currentUser) return;
-  await apiCall('/save-progress', {
+  await apiCall('/page-visits', {
     user_id:    currentUser.id,
     topic:      page,
     bookmarked: bookmarked,

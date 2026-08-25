@@ -12,7 +12,8 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - ./Backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./Backend/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql
+      - ./node-app/migrations/001_page_visits.sql:/docker-entrypoint-initdb.d/20-page-visits.sql
       - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]

@@ -1,13 +1,19 @@
 # JD-Academy: PHP → Node.js/Express Migration Audit
 
-**Audit Date:** August 14, 2026  
-**Auditor:** Comprehensive Migration Review  
-**Repository:** Omircon-sudo/JD-Academy (main branch)  
-**Status:** ✅ Migration is substantially complete and functional
+**Audit Date:** August 14, 2026 (original) — **Addendum: August 25, 2026**
+**Auditor:** Comprehensive Migration Review
+**Repository:** Omircon-sudo/JD-Academy (main branch)
+**Status:** 🟠 **INTEGRATION FIXES REMAIN** — see [Addendum](#addendum-2026-08-25-frontend-integration-audit) below
 
 ---
 
-## Executive Summary
+## ⚠️ 2026-08-25 correction
+
+The section below (original body of this document) is an accurate comparison of the **PHP code to the Node.js code**. It is **not** an accurate statement of whether the application works end-to-end, because it never checked whether the shipped frontend actually calls the backend it describes. It does not, in several places. Read the [Addendum](#addendum-2026-08-25-frontend-integration-audit) at the end of this document before treating anything below as a deployment go-ahead. The original "✅ FULLY MIGRATED / READY FOR DEPLOYMENT / 95% confidence" conclusions are **superseded**.
+
+---
+
+## Executive Summary (original, 2026-08-14 — superseded, see addendum)
 
 The PHP-to-Node.js/Express migration of JD-Academy is **complete and production-ready** with the following qualifications:
 
@@ -740,7 +746,7 @@ If production deployment fails:
 
 ---
 
-## Final Assessment
+## Final Assessment (original, 2026-08-14 — superseded, see addendum)
 
 ### 🟢 RECOMMENDATION: **READY FOR DEPLOYMENT**
 
@@ -763,6 +769,52 @@ The migration is complete, well-tested, and security-sound. All core functionali
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** August 14, 2026  
-**Status:** Final Audit Complete
+**Document Version:** 1.0
+**Last Updated:** August 14, 2026
+**Status:** Superseded by the 2026-08-25 addendum below — do not use this section to make a go-live decision.
+
+---
+
+## Addendum: 2026-08-25 frontend integration audit
+
+Everything above compares **PHP code to Node.js code**. It never checked whether the frontend the actual visitor loads (`node-app/public/index.html`, served at `GET /`) can reach either backend. It mostly can't. This addendum is the load-bearing status for this project; the sections above are kept for the PHP↔Node business-logic comparison, which is still accurate.
+
+### What's actually true
+
+**PHP → Node migration:** ✅ Accurate as originally audited. Every PHP endpoint has a faithful, parameterized, bcrypt-secured Node equivalent. This was never the problem.
+
+**Frontend → backend integration:** 🔴 Was almost entirely disconnected. Concretely, as found by tracing the shipped JS against the running server:
+
+| Flow | Frontend calls | Backend had | Result before fix |
+|---|---|---|---|
+| Register/Login | `POST /register`, `/login` (no `/api` prefix — confirmed this is the copy actually served at `/`), expects `{ok, user, error}` | `routes/legacy.js` at the same paths, but returning `{success, message}` | Every real registration/login silently read as "failed" — `result.ok` was always `undefined`. Frontend has an "offline mode" fallback that saves the fake session to `sessionStorage` instead, so nobody ever saw an error, they just never actually got an account. |
+| Page visits / bookmarks | `POST /save-progress` with `{user_id, topic, bookmarked, timestamp}` | `/save-progress` already existed, but for a *different* purpose — the quiz-score contract inherited from `Backend/save-progress.php` (`levelKey, topicKey, score, total`) | 422 validation error, silently discarded (the frontend never reads the response). Nothing was ever recorded. |
+| Quiz scores | *(nothing)* — traced two quizzes end-to-end (`primary-counting`, `alevel-quadratics`); both compute `score`/`total` entirely client-side and only ever `postMessage` `{nav:...}` or toast events to the parent frame | `POST /api/progress/save` (real, tested, correct) | No connection exists at all. This is true for all 42 quiz iframes, not just the two sampled — same boilerplate pattern throughout. |
+| Certificates | "My Certificates" nav link only calls `requireLogin(event, '...')`, which shows a login-prompt toast — no link, button, or fetch anywhere reaches `/certificates/*` or `/api/certificates/*` | Full generate/verify flow, tested and correct | Unreachable from the UI. Backend correctness doesn't matter if nothing ever calls it. |
+| Session validation | `loadSession()` only reads `sessionStorage`; `doLogout()` only clears it. Neither ever calls the real `/session-check` or `/logout` | Both implemented correctly | UI's "am I logged in" state is pure client-side fiction, never reconciled with the server. |
+
+### Root cause of the confusion
+
+Three near-duplicate copies of the frontend exist in this repo: `jdm-academy-v9-cleaned.html` (root), `Frontend/Landingpage.html`, and `node-app/public/index.html`. Only the third is actually served by the Node app. It had already been hand-edited to point at `/register`/`/login`/`/save-progress` (no `/api` prefix, no `.php` suffix) — i.e. someone had already partially aligned it with `routes/legacy.js` — but the *response envelope* (`{ok, error}` vs `{success, message}`) was never fixed, and the save-progress payload collision was never noticed. The other two copies use a still-different, `/api`-prefixed, `.php`-suffixed contract that matches neither backend as originally built.
+
+### What was fixed in this pass (commits `8b579e2`, and the commit introducing this addendum)
+
+- `routes/legacy.js`'s `/register` and `/login` now return `{ok, user, error}` via a shared `registerCompat`/`loginCompat` (`controllers/frontendCompatController.js`) — verified live with curl against the real served frontend's exact paths.
+- `routes/frontendCompat.js` (`/api/register.php`, `/api/login.php`) kept and wired to the same shared handlers, in case the other two frontend copies are ever the one deployed.
+- New `page_visits` table (`node-app/migrations/001_page_visits.sql` — deliberately **not** added to `Backend/schema.sql`, to leave the PHP reference untouched) plus `pageVisitService`/`pageVisitController`, mounted at `POST /page-visits`. `apiSaveVisit()` in `node-app/public/index.html` now calls this instead of colliding with `/save-progress`'s quiz-score contract. The server never trusts the client-supplied `user_id`; it uses the session's.
+- Added the receiving half of a real quiz-score pipeline: `window.addEventListener('message', ...)` in `node-app/public/index.html` now handles `{quizComplete:{levelKey, topicKey, score, total}}` and forwards it to the real `/save-progress` (quiz-score) endpoint, toasting when a level completes. **No quiz iframe sends this message yet** — this is plumbing only. Closing the loop means adding one `parent.postMessage({quizComplete:{...}}, '*')` call to each of the 42 quiz iframes' existing "finish" handler, where `score`/`total` are already computed. Mechanical, repetitive, not yet done — flagged rather than guessed at, and a reasonable candidate for a dedicated follow-up pass given the volume.
+- "My Certificates" nav link still only shows a toast; there is no page to link it to. Not built — this is new UI, not a contract fix, and out of scope for an integration-fix pass.
+- bcrypt 5.1.1 → 6.0.0 (removes the vulnerable `@mapbox/node-pre-gyp`/`tar` chain; `npm audit` now clean).
+- Added `express-rate-limit` on every register/login entry point (verified: 429 after repeated attempts).
+- Replaced the default in-memory session store with a MySQL-backed one (`express-mysql-session`, reusing the existing pool) — no Redis, consistent with the cPanel shared-hosting target in `Backend/SETUP-GUIDE.txt`.
+- Removed the dead, non-functional duplicate `app.js`/`server.js`/`package.json` at the repo root (confirmed unreferenced by any script, doc, or config before deleting).
+
+### What's still open
+
+1. **Quiz-score wiring across 42 iframes** — the single most important remaining gap; without it, no real learner progress or certificate eligibility can ever be recorded, no matter how correct the backend is.
+2. **A "My Certificates" page/link** for the generate/verify flow to actually be reachable.
+3. Local verification here was structural only (route existence, live curl checks, `npm test` smoke suite, lint) — **no MySQL credentials were available in this environment** to run the DB-backed integration suite or confirm rows actually land in `page_visits`/`progress`/`certificates`. This was true of the original audit too; it's not a new limitation, but it means "verified against a live database" still hasn't happened for any of this.
+
+### Status
+
+🟠 **INTEGRATION FIXES REMAIN** — not production-ready, not even fully staging-ready. The register/login/bookmark contract bugs are fixed and verified live (minus real DB confirmation). The learner-facing core loop — take a quiz, get progress, earn a certificate — still has no wiring from frontend to backend at all.
