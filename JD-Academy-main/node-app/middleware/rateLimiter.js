@@ -8,6 +8,11 @@ const authLimiter = rateLimit({
   limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  // The automated test suite legitimately calls login/register far more than
+  // 10 times per run (many tests each log in fresh) against the one shared
+  // counter above -- skip in-process so tests exercise real auth logic
+  // instead of tripping their own rate limit.
+  skip: () => process.env.NODE_ENV === 'test',
   message: { success: false, ok: false, message: 'Too many attempts. Please try again later.', error: 'Too many attempts. Please try again later.' }
 });
 

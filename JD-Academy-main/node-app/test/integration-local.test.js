@@ -1,12 +1,15 @@
+process.env.NODE_ENV = process.env.NODE_ENV || 'test';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 const mysql = require('mysql2/promise');
 const app = require('../app');
 const pool = require('../config/database');
-const { DB_HOST, DB_NAME, DB_USER, DB_PASS } = require('../config');
+const { sessionStore } = require('../config/session');
+const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS } = require('../config');
 
-const baseConfig = { host: DB_HOST, user: DB_USER, password: DB_PASS, database: DB_NAME, charset: 'utf8mb4' };
+const baseConfig = { host: DB_HOST, port: DB_PORT, user: DB_USER, password: DB_PASS, database: DB_NAME, charset: 'utf8mb4' };
 let connection;
 let agent;
 let userId;
@@ -41,6 +44,10 @@ test.before(async () => {
 
 test.after(async () => {
   if (connection) await connection.end();
+  // MySQLStore defaults to clearExpired: true, which runs its own
+  // setInterval independent of the pool -- pool.end() alone leaves that
+  // timer running and the process (and this test run) never exits.
+  if (sessionStore) sessionStore.close();
   if (pool) await pool.end();
 });
 
@@ -216,7 +223,7 @@ test('the live frontend contract (/register, /login, /save-progress) matches the
 
 test('my-certificates page lists earned certificates and in-progress levels', async () => {
   const sessionAgent = request.agent(app);
-  await sessionAgent.post('/api/auth/login').send({ email: uniqueEmail, password: 'strongpass123' });
+  await sessionAgent.post('/api/auth/login').send({ email: uniqueEmail, password: 'strongpass123' }).expect(200);
 
   const page = await sessionAgent.get('/my-certificates').expect(200);
   assert.match(page.text, /Primary Mathematics/);

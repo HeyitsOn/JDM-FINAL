@@ -16,6 +16,7 @@ module.exports = {
   SESSION_SECRET: process.env.SESSION_SECRET,
   SESSION_LIFETIME: Number(process.env.SESSION_LIFETIME || 60 * 60 * 24 * 30),
   DB_HOST: process.env.DB_HOST || 'localhost',
+  DB_PORT: Number(process.env.DB_PORT || 3306),
   DB_NAME: process.env.DB_NAME || '',
   DB_USER: process.env.DB_USER || '',
   DB_PASS: process.env.DB_PASS || '',
