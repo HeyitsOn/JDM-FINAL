@@ -622,7 +622,7 @@ body{background:linear-gradient(160deg,var(--acc-d) 0%,var(--bg) 40%,var(--bg) 1
     <a class="nav-link" href="#" onclick="requireLogin(event,'📈 Progress tracker coming soon — log in to track your scores!')">
       <div class="nav-icon">📈</div>My Progress
     </a>
-    <a class="nav-link" href="#" onclick="requireLogin(event,'🏅 Earn certificates by completing topics!')">
+    <a class="nav-link" href="/my-certificates" onclick="return goToMyCertificates(event)">
       <div class="nav-icon">🏅</div>My Certificates
     </a>
     <a class="nav-link" href="#" onclick="requireLogin(event,'⬇️ Download your results as PDF')">
@@ -10799,6 +10799,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;sets-venn&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -11572,6 +11574,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;number-types&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -12349,6 +12353,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;number-operations&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -13118,6 +13124,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;percentages&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -13925,6 +13933,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;bounds-approximation&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -14696,6 +14706,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;primary&#x27;,topicKey:&#x27;primary-counting&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -15470,6 +15482,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;primary&#x27;,topicKey:&#x27;primary-place-value&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -16242,6 +16256,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;primary&#x27;,topicKey:&#x27;primary-ordering&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -17023,6 +17039,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;primary&#x27;,topicKey:&#x27;primary-addition&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -17610,6 +17628,8 @@ function showResults() {
   const percentage = Math.round((score / total) * 100);
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;primary&#x27;,topicKey:&#x27;primary-subtraction&#x27;,score:score,total:total}}, window.location.origin);
   let grade, gradeClass, message;
   if (percentage &gt;= 90) { grade = &#x27;A* — Exceptional!&#x27;; gradeClass = &#x27;grade-a&#x27;; message = `🎉 &lt;strong&gt;Outstanding!&lt;/strong&gt; You scored ${score}/${total} (${percentage}%). Sir JD is incredibly proud — you&#x27;ve absolutely mastered Subtraction Basics! You&#x27;re ready for the next topic! 🚀`; }
   else if (percentage &gt;= 80) { grade = &#x27;A — Excellent!&#x27;; gradeClass = &#x27;grade-a&#x27;; message = `👏 &lt;strong&gt;Great job!&lt;/strong&gt; You scored ${score}/${total} (${percentage}%). A solid understanding of subtraction facts, single-digit subtraction, multi-digit subtraction, and borrowing. Just a little polish needed for perfection! 📚`; }
@@ -18361,6 +18381,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;primary&#x27;,topicKey:&#x27;primary-rounding&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -19157,6 +19179,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;olevel-algebraic&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -19972,6 +19996,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;olevel-linear-eq&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -20831,6 +20857,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;olevel-simultaneous&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -21621,6 +21649,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;olevel-quadratic&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -22410,6 +22440,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;olevel-coordinate&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -23233,6 +23265,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;olevel-angles&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -24022,6 +24056,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;olevel&#x27;,topicKey:&#x27;olevel-probability&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -24921,6 +24957,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;university&#x27;,topicKey:&#x27;uni-linear-algebra&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -25800,6 +25838,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;university&#x27;,topicKey:&#x27;uni-real-analysis&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -26708,6 +26748,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;university&#x27;,topicKey:&#x27;uni-abstract-algebra&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -29056,6 +29098,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;alevel&#x27;,topicKey:&#x27;alevel-coordinate&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -29917,6 +29961,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;alevel&#x27;,topicKey:&#x27;alevel-functions&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -30731,6 +30777,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;alevel&#x27;,topicKey:&#x27;alevel-integration&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -31569,6 +31617,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;alevel&#x27;,topicKey:&#x27;alevel-quadratics&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -32389,6 +32439,8 @@ function showResults() {
 
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
+
+  parent.postMessage({quizComplete:{levelKey:&#x27;alevel&#x27;,topicKey:&#x27;alevel-series&#x27;,score:score,total:total}}, window.location.origin);
 
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
@@ -33219,6 +33271,8 @@ function showResults() {
   document.getElementById(&#x27;final-score-num&#x27;).textContent = score;
   document.getElementById(&#x27;final-total&#x27;).textContent = total;
 
+  parent.postMessage({quizComplete:{levelKey:&#x27;alevel&#x27;,topicKey:&#x27;alevel-trig&#x27;,score:score,total:total}}, window.location.origin);
+
   let grade, gradeClass, message;
   if (percentage &gt;= 90) {
     grade = &#x27;A* — Exceptional!&#x27;;
@@ -33569,12 +33623,13 @@ window.addEventListener('message', e=>{
     show(nav);
   }
   if(e.data.toast_icon && e.data.toast_msg) toast(e.data.toast_icon, e.data.toast_msg);
-  // Contract for quiz iframes to report a finished attempt (not yet sent by any
-  // quiz -- each quiz's "finish" handler still needs its own postMessage call
-  // added, e.g. parent.postMessage({quizComplete:{levelKey:'primary',
-  // topicKey:'primary-counting', score, total}}, '*')). This listener is the
-  // receiving half of that wiring.
-  if(e.data.quizComplete) submitQuizScore(e.data.quizComplete);
+  // All 27 scoreable quiz iframes report a finished attempt via
+  // parent.postMessage({quizComplete:{levelKey, topicKey, score, total}}, window.location.origin).
+  // Unlike the nav/toast messages above (sent with '*'), quizComplete carries data that
+  // gets persisted server-side, so it's the one message type we actually check the
+  // origin on -- every quiz iframe is srcdoc (no sandbox), so it's genuinely same-origin
+  // and can send an explicit target origin instead of '*'.
+  if(e.data.quizComplete && e.origin === window.location.origin) submitQuizScore(e.data.quizComplete);
 });
 
 async function submitQuizScore({ levelKey, topicKey, score, total }){
@@ -33641,6 +33696,17 @@ function requireLogin(ev, msg){
   if(currentUser){ toast('✅',msg); return; }
   toast('🔐','Log in or sign up to unlock this feature!');
   setTimeout(()=>openModal('login'),600);
+}
+
+// "My Certificates" nav link: real navigation (leaving the SPA shell for the
+// server-rendered /my-certificates page) when logged in, same login prompt
+// as requireLogin() otherwise.
+function goToMyCertificates(ev){
+  if(currentUser) return true;
+  ev.preventDefault();
+  toast('🔐','Log in or sign up to unlock this feature!');
+  setTimeout(()=>openModal('login'),600);
+  return false;
 }
 
 // ===================================================
