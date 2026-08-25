@@ -1,4 +1,5 @@
 const certificateService = require('../services/certificateService');
+const progressService = require('../services/progressService');
 
 async function generateCertificate(req, res, next) {
   try {
@@ -67,4 +68,21 @@ async function verifyCertificate(req, res, next) {
   }
 }
 
-module.exports = { generateCertificate, verifyCertificate };
+async function myCertificates(req, res, next) {
+  try {
+    const userId = req.session.userId;
+    const [certificates, levels] = await Promise.all([
+      certificateService.getCertificatesByUserId(userId),
+      progressService.getProgress(userId),
+    ]);
+    res.render('my-certificates', {
+      studentName: req.user ? req.user.name : 'Student',
+      certificates,
+      levels,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { generateCertificate, verifyCertificate, myCertificates };

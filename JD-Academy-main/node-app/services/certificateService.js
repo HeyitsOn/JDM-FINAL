@@ -61,7 +61,10 @@ async function verifyCertificate(code) {
 
 async function getCertificatesByUserId(userId) {
   const [rows] = await pool.execute(
-    'SELECT level_key, certificate_code, issued_at FROM certificates WHERE user_id = ?',
+    `SELECT c.level_key, c.certificate_code, c.issued_at, lr.level_label
+     FROM certificates c
+     JOIN level_requirements lr ON lr.level_key = c.level_key
+     WHERE c.user_id = ?`,
     [userId]
   );
   return rows;
