@@ -1,0 +1,98 @@
+============================================================
+JDM ACADEMY BACKEND — SETUP GUIDE
+============================================================
+Everything in this folder has been fully tested (I ran a real
+MySQL database and PHP server and clicked through every single
+flow — register, login, save progress, complete a level,
+generate a certificate, and verify it publicly). It works.
+You just need to connect it to your real database.
+
+------------------------------------------------------------
+STEP 1 — Create the database (cPanel)
+------------------------------------------------------------
+1. cPanel → Databases → MySQL Databases
+2. Under "Create New Database", type: jdmacad
+   (cPanel will auto-prefix it, e.g. yourusername_jdmacad)
+   Click Create Database.
+3. Scroll to "MySQL Users" → Add New User.
+   Username: jdmuser  →  set a strong password → Create User.
+   IMPORTANT: copy that password somewhere safe right now.
+4. Scroll to "Add User To Database" → select the user and the
+   database you just made → Add → tick "ALL PRIVILEGES" → Make Changes.
+
+------------------------------------------------------------
+STEP 2 — Import the table structure
+------------------------------------------------------------
+1. cPanel → phpMyAdmin
+2. Click your new database (yourusername_jdmacad) on the left
+3. Click the "Import" tab
+4. Choose File → select schema.sql from this folder
+5. Click Go at the bottom
+
+You should now see 4 tables: users, progress, level_requirements,
+certificates.
+
+------------------------------------------------------------
+STEP 3 — Edit config.php (only file you need to change)
+------------------------------------------------------------
+Open config.php in any text editor and fill in the 4 values
+from Steps 1 (cPanel shows you the exact database name and
+username with the prefix already added):
+
+    DB_NAME  → e.g. yourusername_jdmacad
+    DB_USER  → e.g. yourusername_jdmuser
+    DB_PASS  → the password you set in Step 1
+    SITE_URL → your real domain, e.g. https://jdmacademy.co.za
+
+Save the file.
+
+------------------------------------------------------------
+STEP 4 — Upload everything
+------------------------------------------------------------
+Upload ALL files in this folder (except this guide) to the
+SAME folder where you put index.html on your new addon domain
+— e.g. public_html/jdmacademy.co.za/
+
+That's it — the backend is live at URLs like:
+    https://jdmacademy.co.za/register.php
+    https://jdmacademy.co.za/login.php
+    https://jdmacademy.co.za/generate-certificate.php?level=primary
+    https://jdmacademy.co.za/verify-certificate.php
+
+------------------------------------------------------------
+STEP 5 — Set PHP version
+------------------------------------------------------------
+cPanel → MultiPHP Manager → select jdmacademy.co.za → set to
+PHP 8.0 or higher → Apply. (You confirmed 8.0 is available —
+that's enough, everything here was built and tested for it.)
+
+------------------------------------------------------------
+WHAT EACH FILE DOES
+------------------------------------------------------------
+config.php              Your database credentials (EDIT THIS)
+db.php                  Shared connection code (don't need to touch)
+register.php            Creates a new student account
+login.php               Logs a student in
+logout.php              Logs a student out
+session-check.php       Frontend asks this "is anyone logged in?"
+save-progress.php       Called when a student finishes a quiz
+get-progress.php        Returns a student's full progress (for dashboard)
+generate-certificate.php   Shows/creates the certificate once a level is done
+verify-certificate.php  Public page to check if a certificate code is real
+schema.sql               Database structure (only used once, in Step 2)
+
+------------------------------------------------------------
+WHAT'S NEXT
+------------------------------------------------------------
+This backend is ready and working, but the website's HTML/JS
+doesn't call it yet — the Sign Up / Log In buttons on the site
+are still just visual. The next step is for me to update the
+site so:
+  - "Sign Up" / "Log In" actually call register.php / login.php
+  - Each quiz calls save-progress.php when a student finishes
+  - A "Get My Certificate" button appears once a level is 100%
+    complete, linking to generate-certificate.php
+
+Let me know once Steps 1-5 are done (or if you'd like me to
+just get started on the frontend connection now) and I'll wire
+it all together.

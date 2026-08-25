@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Certificate of Completion — <%= studentName %></title>
+<style>
+    @page { size: landscape; margin: 0; }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: 'Georgia', serif;
+        background: #e5e9f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+    }
+    .certificate {
+        width: 1000px;
+        max-width: 100%;
+        background: #ffffff;
+        border: 14px solid #0033A0;
+        outline: 3px solid #F59E0B;
+        outline-offset: -24px;
+        padding: 70px 80px;
+        text-align: center;
+        position: relative;
+    }
+    .brand {
+        font-size: 14px;
+        letter-spacing: 3px;
+        color: #E31937;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }
+    .brand-sub { font-size: 12px; color: #64748b; margin-bottom: 30px; letter-spacing: 1px; }
+    .title { font-size: 42px; color: #0A1628; margin: 0 0 6px; }
+    .subtitle { font-size: 15px; color: #64748b; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 40px; }
+    .presented { font-size: 14px; color: #64748b; margin-bottom: 8px; }
+    .student-name { font-size: 40px; color: #0033A0; margin: 0 0 30px; font-family: 'Playfair Display', Georgia, serif; border-bottom: 2px solid #F59E0B; display: inline-block; padding-bottom: 10px; }
+    .body-text { font-size: 16px; color: #334155; line-height: 1.8; max-width: 650px; margin: 0 auto 40px; }
+    .level-name { color: #E31937; font-weight: bold; }
+    .footer-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 50px; }
+    .footer-col { text-align: center; width: 240px; }
+    .footer-line { border-top: 1px solid #94a3b8; padding-top: 8px; font-size: 13px; color: #334155; }
+    .footer-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+    .seal { width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg,#0033A0,#E31937); display: flex; align-items: center; justify-content: center; color: white; font-size: 26px; font-weight: bold; margin: 0 auto; }
+    .code { font-size: 11px; color: #94a3b8; margin-top: 6px; letter-spacing: 1px; }
+    .print-btn-wrap { text-align: center; margin-top: 24px; }
+    .print-btn {
+        background: #E31937; color: white; border: none; padding: 14px 36px;
+        border-radius: 50px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: sans-serif;
+    }
+    @media print {
+        body { background: white; }
+        .certificate { border-width: 10px; }
+        .print-btn-wrap { display: none; }
+    }
+</style>
+</head>
+<body>
+    <div class="certificate">
+        <div class="brand">JDM Academy</div>
+        <div class="brand-sub">Just Do Maths — Free Mathematics Education</div>
+        <div class="title">Certificate of Completion</div>
+        <div class="subtitle">This certifies that</div>
+        <div class="presented">&nbsp;</div>
+        <div class="student-name"><%= studentName %></div>
+        <div class="body-text">
+            has successfully completed all topics in the
+            <span class="level-name"><%= levelLabel %></span>
+            course on JDM Academy, demonstrating consistent effort and mastery of the material.
+        </div>
+        <div class="footer-row">
+            <div class="footer-col">
+                <div class="footer-line"><%= issuedDateDisplay %></div>
+                <div class="footer-label">Date Issued</div>
+            </div>
+            <div class="footer-col">
+                <div class="seal">JDM</div>
+            </div>
+            <div class="footer-col">
+                <div class="footer-line">Sir JD, Founder</div>
+                <div class="footer-label">JDM Academy</div>
+            </div>
+        </div>
+        <div class="code">Certificate Code: <%= code %> &nbsp;·&nbsp; Verify at <%= verifyUrl %></div>
+    </div>
+    <div class="print-btn-wrap">
+        <button class="print-btn" onclick="window.print()">🖨️ Save as PDF / Print</button>
+    </div>
+</body>
+</html>
