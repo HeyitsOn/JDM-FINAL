@@ -17,6 +17,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(session(sessionConfig));
 
 app.use('/api', routes);
+app.use('/api', require('./routes/frontendCompat'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/progress', require('./routes/progress'));
 app.use('/api/certificates', require('./routes/certificates'));
