@@ -873,12 +873,62 @@ This isn't something wiring can fix, and I didn't touch `required_topics` — ch
 
 `test/integration-local.test.js`: page-visits records under the session's real user ID (not a spoofed client-supplied one); the live frontend's exact contract (`/register` → `/login` → `/save-progress`) end-to-end against the real progress API; `/my-certificates` renders both earned certificates and in-progress levels. `test/migration-smoke.test.js` unchanged in this stage (a proposed route-existence addition for `/my-certificates` was not applied — skipped, not silently dropped).
 
-### What was and wasn't verified
+### What was and wasn't verified (as of Stage 4)
 
 **Verified:** route wiring, response shapes, JS syntax validity, the shipped frontend logic in isolation (via `vm`), `npm test`'s DB-independent smoke suite, `npm run lint`, live curl checks against a running server.
 
-**Not verified — no MySQL available in this environment, same limitation as every prior pass:** an actual browser completing an actual quiz against an actual database; whether a row really lands in `progress`/`certificates`/`page_visits`; best-score-wins and progress-persists-after-logout against real data. The integration test file now has the assertions to check all of this the moment it's run against a real database — it just hasn't been run here.
+**Not verified at Stage 4 — no MySQL available in that environment, same limitation as every prior pass:** an actual browser completing an actual quiz against an actual database; whether a row really lands in `progress`/`certificates`/`page_visits`; best-score-wins and progress-persists-after-logout against real data. Resolved in Stage 5, below.
+
+---
+
+## Stage 5: Real MySQL-backed validation (2026-08-25, same day)
+
+No Docker available in this environment either, so rather than skip DB validation again, stood up an isolated, throwaway `mysqld` instance directly from the same MySQL 8.0 binaries already installed on the machine (`mysqld --initialize-insecure` into a fresh temp datadir, bound to `127.0.0.1:3307` — deliberately not port 3306, so the machine's real `MySQL80` Windows service was never touched, queried, or even connected to). Imported `Backend/schema.sql` then `node-app/migrations/001_page_visits.sql` into it, created a dedicated non-root user, pointed `.env` at it, and ran the actual test suite and a manual curl walkthrough against it. Torn down afterward (`mysqladmin shutdown`); `.env` restored to the template values pointing at nothing live.
+
+### Two real bugs found and fixed by attempting this for real
+
+1. **`node --test ... | tail -100` produced zero output for 5+ minutes and looked hung.** It wasn't hung — `tail` without `-f` buffers everything until the input stream ends, so nothing prints until the process exits. Not an app bug, but worth recording: don't pipe a long-running test run through `tail`.
+2. **`node --test` genuinely did hang, separately, after all tests finished.** Root cause: `express-mysql-session` defaults to `clearExpired: true`, which starts its own `setInterval` independent of the connection pool. `pool.end()` alone (the test suite's existing cleanup) doesn't touch it, so the timer keeps the process alive indefinitely. Fixed by calling `sessionStore.close()` in `test.after()`, and added the same handling as a real `SIGTERM`/`SIGINT` graceful-shutdown path in `server.js` — this would have affected production process managers (PM2/systemd) exactly the same way, not just tests.
+
+A third issue surfaced once the suite could actually run to completion:
+
+3. **The rate limiter (added in Stage 4) is shared across all six register/login paths by design** (`routes/auth.js`, `routes/legacy.js`, `routes/frontendCompat.js` all `require()` the same `authLimiter` instance) — correct for stopping brute-force, but the test suite's cumulative login/register calls across 12 tests exceeded the 10-per-15-minutes limit well before the file finished, so two new tests failed with `429` and a cascading `401`. Added `skip: () => process.env.NODE_ENV === 'test'` to the limiter and set `NODE_ENV=test` at the top of the integration test file (before `../app` is required, so `dotenv` doesn't clobber it) — standard practice, doesn't weaken the limiter for anything that isn't the test process itself.
+
+Also added `DB_PORT` support (`config/index.js`, `config/database.js`, `.env.example`) since it didn't exist before and this validation needed it — a real, if minor, gap (anyone whose MySQL isn't on the default 3306 had no way to configure that).
+
+### DATABASE TEST
+
+- Database created: yes (`jdmacad_test`, isolated instance).
+- Schema imported: yes — `Backend/schema.sql` (unmodified) then `node-app/migrations/001_page_visits.sql`; all 5 tables present (`users`, `progress`, `level_requirements`, `certificates`, `page_visits`), plus a `sessions` table auto-created by `express-mysql-session`.
+- Tests: **12/12 passed** against the real database (`node --test test/integration-local.test.js`, exit code 0).
+- `npm run lint`: 0 errors (1 pre-existing unrelated warning). `npm audit`: 0 vulnerabilities.
+
+### Actual database records verified directly (not just via test assertions — separate `mysql` CLI queries after the run)
+
+| # | Item | Verified |
+|---|---|---|
+| 1 | Registration | `users` row created, bcrypt hash stored, real ID returned |
+| 2 | Login/session | `last_login_at` set on login; MySQL-backed `sessions` table had 31 real rows after the run (not the in-memory default store) |
+| 3 | Page visit | `page_visits` row for `primary-counting`, correct `user_id` (session's, not the client-supplied spoofed one the test deliberately sent) |
+| 4 | Bookmark | Same row, `bookmarked=1` |
+| 5 | Quiz score | Real scores posted and stored for **all four levels** — `primary`, `olevel` (`number-types`), `alevel` (`alevel-quadratics`), `university` (`uni-linear-algebra`) — via the exact `/save-progress` contract the quiz iframes now call |
+| 6 | Best-score update | Retried `primary-place-value` with a lower score (5/6) after an initial 6/6: DB still showed 6, confirming the lower attempt did not overwrite it |
+| 7 | Completion | Submitted all 6 primary topics; the 6th response returned `levelComplete:true`, matching `level_requirements` |
+| 8 | Certificate eligibility | Correctly blocked before all 6 topics were done (same code path as before, re-exercised here) |
+| 9 | Certificate creation | Real row in `certificates` (`JDM-CF96-A5AF`), `/generate-certificate?level=primary` rendered it, `/my-certificates` listed it with a working "View / Print" link and "Continue" links for the still-in-progress levels |
+| 10 | Certificate verification | `/verify-certificate?code=JDM-CF96-A5AF` (no auth) returned "Valid Certificate" with the right student/course; an invalid code correctly returned "No certificate found" |
+
+Also explicitly verified: logout clears the session (`session-check` → `loggedIn:false`), and logging back in shows the *exact same* progress and certificate as before — confirmed via `/get-progress`'s raw JSON, not just a summary count.
+
+### A-Level / University — documented, not modified
+
+Left `required_topics`, quiz counts, and certificate rules untouched, as instructed. For precision (the earlier Stage 4 pass counted this slightly differently, worth reconciling):
+
+- **A-Level:** `required_topics = 11`. Quizzes that actually compute and could submit a score today: **6** (`alevel-coordinate`, `alevel-functions`, `alevel-integration`, `alevel-quadratics`, `alevel-series`, `alevel-trig`). Counting the 4 "coming soon" placeholder pages that exist but have no quiz logic at all (`alevel-pure1/pure2/statistics/mechanics`): **10** total pages. Either way, short of 11.
+- **University:** `required_topics = 8`. Scoreable today: **3** (`uni-linear-algebra`, `uni-real-analysis`, `uni-abstract-algebra`). Including the 4 coming-soon placeholders (`uni-calculus/complex/number-theory/differential-eq`): **7** total pages. Short of 8.
+
+Whether "available" should mean the 6/3 that actually work today or the 10/7 that exist in any form, both readings land short of `required_topics` for these two levels. This is unchanged from Stage 4 and still needs a product decision, not code.
 
 ### Status
 
-🟠 **INTEGRATION FIXES REMAIN** — but narrower than before. Register/login/bookmarks/quiz-score-wiring/certificate-access are implemented and verified at every level short of a live database. What's left is (1) running the existing test suite against a real MySQL instance to confirm the database side, and (2) a product decision on the A-Level/University `required_topics` mismatch, which no amount of further coding resolves.
+🟡 **STAGING READY — PRODUCTION DATABASE REQUIRED.** The full learner loop — register, log in, take a quiz at every level, best-score-wins, complete a level, earn a certificate, verify it publicly, log out, log back in and see it all still there — is now verified against a real MySQL database end-to-end, not just code-reviewed. What remains is entirely external to this codebase: point the app at the client's real production database (with real credentials, never fabricated or reused from this throwaway instance, which has already been torn down) and resolve the A-Level/University `required_topics` product decision. Primary and O-Level are fully functional today.
