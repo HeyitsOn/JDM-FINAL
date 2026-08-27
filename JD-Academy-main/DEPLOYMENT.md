@@ -2,9 +2,11 @@
 
 ## ⚠️ Unverified prerequisite — read this first
 
+The intended host is **Domains.co.za** cPanel hosting. That's the only fact currently known about it — nothing in this repo confirms the specific package on this specific account can run a persistent Node.js application, and this doc does not assume it can.
+
 Every existing deployment note in this repo (`Backend/SETUP-GUIDE.txt`) describes uploading **PHP** files to cPanel via `public_html` and running them under `MultiPHP Manager`. It never mentions Node.js, and nothing else in the repo confirms the target cPanel account can run a persistent Node.js application.
 
-Standard shared-hosting cPanel does **not** run Node apps the way it runs PHP. It requires a specific feature — usually called **"Setup Node.js App"** in cPanel, backed by Passenger/CloudLinux's Node.js Selector — which not every hosting plan includes. Before anything below is useful, someone needs to check, in the actual cPanel panel for this account:
+Standard shared-hosting cPanel does **not** run Node apps the way it runs PHP. It requires a specific feature — usually called **"Setup Node.js App"** in cPanel, backed by Passenger/CloudLinux's Node.js Selector — which not every hosting plan includes, and whether Domains.co.za's plan for this account includes it hasn't been checked. Before anything below is useful, someone needs to check, in the actual cPanel panel for this account:
 
 - Does a **"Setup Node.js App"** icon exist under the Software section?
 - If yes: what Node version(s) does it offer? (this app needs **Node ≥ 20**, per `node-app/package.json`'s `engines` field)

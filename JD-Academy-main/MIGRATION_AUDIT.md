@@ -929,6 +929,44 @@ Left `required_topics`, quiz counts, and certificate rules untouched, as instruc
 
 Whether "available" should mean the 6/3 that actually work today or the 10/7 that exist in any form, both readings land short of `required_topics` for these two levels. This is unchanged from Stage 4 and still needs a product decision, not code.
 
-### Status
+### Status (as of Stage 5)
 
 🟡 **STAGING READY — PRODUCTION DATABASE REQUIRED.** The full learner loop — register, log in, take a quiz at every level, best-score-wins, complete a level, earn a certificate, verify it publicly, log out, log back in and see it all still there — is now verified against a real MySQL database end-to-end, not just code-reviewed. What remains is entirely external to this codebase: point the app at the client's real production database (with real credentials, never fabricated or reused from this throwaway instance, which has already been torn down) and resolve the A-Level/University `required_topics` product decision. Primary and O-Level are fully functional today.
+
+---
+
+## Stage 6: Direct PHP-parity re-audit and pre-deployment hardening (2026-08-27)
+
+Deployment was intentionally not attempted this session (hosting support unverified — see `DEPLOYMENT.md`). Instead, re-verified the Node implementation against the PHP reference by reading `register.php`, `login.php`, `logout.php`, `session-check.php`, `generate-certificate.php`, and `verify-certificate.php` directly (not relying on this document's own earlier summary of them), and checked for anything resolvable without the hosting environment.
+
+### Three real, previously-unflagged parity/consistency gaps found and fixed
+
+1. **No name-length validation.** `register.php` rejects names over 100 characters (`mb_strlen($name) > 100`, matching the `users.name VARCHAR(100)` column) with a clean 422. `authService.js` had no equivalent check at all — a name over 100 chars would have hit MySQL directly, surfacing as a raw driver error instead of a validation message. Added the same check, same error message, in `services/authService.js`.
+2. **Logout didn't clear the client-side cookie.** `logout.php` explicitly expires the `PHPSESSID` cookie in addition to destroying the server-side session. `authController.js`'s logout only destroyed the session server-side (safe — the session is genuinely gone from the MySQL-backed store either way — but the browser kept holding a now-useless cookie). Added `res.clearCookie('jdm_session', { path: '/' })`. Covered by a new test asserting the `Set-Cookie` header actually clears it, not just that the session is destroyed.
+3. **`certificateController.js` read `process.env.SITE_URL` directly** instead of the shared `config` module, with a different (empty-string) fallback than `config/index.js`'s own (`http://localhost:3000`) — two different fallback behaviors for the same setting depending which file read it. Now reads from `../config` like everything else.
+
+### A fourth issue: the session-store hang from Stage 5 was only half-fixed
+
+`test/integration-local.test.js` got the `sessionStore.close()` fix in Stage 5. `test/migration-smoke.test.js` also `require()`s `app.js` (so it also constructs the same `MySQLStore` with its background interval) but had no cleanup hook of its own — it only ever worked because Node caches `require()`d modules, so when both test files run together in one process (`npm test`, with no path — the exact command `DEPLOYMENT.md` tells a deployer to run), the *other* file's cleanup happened to close the shared store. Running `migration-smoke.test.js` **on its own** hung indefinitely — confirmed by actually doing it, not assumed. Added the same defensive `sessionStore.close()`/`pool.end()` cleanup to that file too, wrapped so it's harmless however many times or in whatever order it runs alongside the other file's own cleanup.
+
+### Also added, matching the original audit's own known-gaps list
+
+- **Startup config validation extended**: `config/index.js` previously only required `SESSION_SECRET` to be set (throwing a clear error if missing) but let `DB_NAME`/`DB_USER` silently default to empty strings — meaning a misconfigured `.env` would fail later with a cryptic MySQL connection error instead of a clear one at boot. Both are now required alongside `SESSION_SECRET`. (`DB_PASS` deliberately left optional — some local MySQL setups legitimately have no password.)
+
+### What was checked and found already correct (no change needed)
+
+- **Auth**: password hashing (bcrypt vs PHP's `password_hash`/`PASSWORD_DEFAULT`), session regeneration on login, vague login-failure message, stale-session cleanup in session-check — all already matched.
+- **JWT**: not applicable — neither the PHP nor Node backend ever used JWT; both use server-side sessions consistently. Nothing to migrate here.
+- **SQL**: every query on both sides remains parameterized; no new injection surface introduced by this session's changes.
+- **Secrets sweep**: grepped the full repo for hardcoded passwords/secrets/API keys. Everything that matched was a test-fixture password (`strongpass123`) used only against throwaway local databases, never a real credential. `.env` confirmed never committed (`git ls-files` has no `.env` entry) and `.gitignore` confirmed to cover it at every directory depth (`git check-ignore -v node-app/.env` matches the root-level rule).
+- **`Backend/schema.sql`**: unchanged, still imports cleanly with `node-app/migrations/001_page_visits.sql` on top (re-verified in this session's test run — see below).
+
+### Test coverage gaps closed
+
+Added tests for: the new name-length validation; logout actually clearing the cookie (not just destroying the session); `/my-certificates`'s empty state for a learner with zero certificates (previously only the "has a certificate" case was covered); and one real quiz-score submission per level in a single test, asserting `required_topics` is read correctly for all four levels (previously only primary and O-Level were exercised in the automated suite — A-Level and University had only been checked via a manual curl walkthrough in Stage 5, not in `npm test` itself).
+
+**Verified against a real database again** (same throwaway-instance approach as Stage 5, reusing the same local datadir, torn down again afterward): `npm test` → **17/17 passing** (2 smoke + 15 integration, up from 12). `migration-smoke.test.js` also independently verified to now exit cleanly on its own. `npm audit` → **0 vulnerabilities**.
+
+### Status
+
+🟡 **STAGING READY — PRODUCTION DATABASE REQUIRED.** Unchanged from Stage 5's assessment, now on firmer ground: a second, independent pass against the PHP reference found and fixed three real gaps rather than finding none, and the test hang risk is fully closed (not just worked around for one invocation style). Still nothing this session could do about hosting verification or the A-Level/University content decision — both remain exactly as before.
