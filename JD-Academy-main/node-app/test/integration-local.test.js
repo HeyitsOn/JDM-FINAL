@@ -20,6 +20,7 @@ async function resetDatabase() {
   connection = await mysql.createConnection(baseConfig);
   await connection.execute('DELETE FROM certificates');
   await connection.execute('DELETE FROM progress');
+  await connection.execute('DELETE FROM page_visits');
   await connection.execute('DELETE FROM users');
   await connection.execute('ALTER TABLE users AUTO_INCREMENT = 1');
   await connection.execute('ALTER TABLE progress AUTO_INCREMENT = 1');
@@ -88,6 +89,16 @@ test('rejects invalid login', async () => {
   assert.match(res.body.message, /incorrect email or password/i);
 });
 
+test('rejects a name over 100 characters, matching the PHP reference', async () => {
+  const res = await request(app)
+    .post('/api/auth/register')
+    .send({ name: 'a'.repeat(101), email: `toolongname_${Date.now()}@example.com`, password: 'strongpass123' })
+    .expect(422);
+
+  assert.equal(res.body.success, false);
+  assert.match(res.body.message, /please enter your name/i);
+});
+
 test('session check reports logged in user', async () => {
   const sessionAgent = request.agent(app);
   await sessionAgent
@@ -121,6 +132,12 @@ test('logout destroys session', async () => {
     .expect(200);
 
   assert.equal(followup.body.loggedIn, false);
+
+  const setCookie = res.headers['set-cookie'] || [];
+  assert.ok(
+    setCookie.some((c) => c.startsWith('jdm_session=;')),
+    'logout should clear the jdm_session cookie client-side, not just destroy it server-side'
+  );
 });
 
 test('saves valid progress and retains highest score', async () => {
@@ -228,4 +245,37 @@ test('my-certificates page lists earned certificates and in-progress levels', as
   const page = await sessionAgent.get('/my-certificates').expect(200);
   assert.match(page.text, /Primary Mathematics/);
   assert.match(page.text, /View \/ Print/);
+});
+
+test('my-certificates shows the empty state for a learner with no certificates yet', async () => {
+  const email = `nocerts_${Date.now()}@example.com`;
+  const agentNoCerts = request.agent(app);
+  await agentNoCerts.post('/api/auth/register').send({ name: 'No Certs Yet', email, password: 'strongpass123' }).expect(200);
+
+  const page = await agentNoCerts.get('/my-certificates').expect(200);
+  assert.match(page.text, /haven't earned a certificate yet/i);
+});
+
+test('accepts a real quiz score for every level and reports the correct required_topics', async () => {
+  const email = `alllevels_${Date.now()}@example.com`;
+  const agentAllLevels = request.agent(app);
+  await agentAllLevels.post('/api/auth/register').send({ name: 'All Levels', email, password: 'strongpass123' }).expect(200);
+
+  const cases = [
+    { levelKey: 'primary', topicKey: 'primary-place-value', score: 6, total: 6, expectedRequired: 6 },
+    { levelKey: 'olevel', topicKey: 'number-types', score: 4, total: 5, expectedRequired: 12 },
+    { levelKey: 'alevel', topicKey: 'alevel-quadratics', score: 8, total: 10, expectedRequired: 11 },
+    { levelKey: 'university', topicKey: 'uni-linear-algebra', score: 7, total: 9, expectedRequired: 8 },
+  ];
+
+  for (const { levelKey, topicKey, score, total, expectedRequired } of cases) {
+    const res = await agentAllLevels
+      .post('/api/progress/save')
+      .send({ levelKey, topicKey, score, total })
+      .expect(200);
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.topicsCompleted, 1);
+    assert.equal(res.body.topicsRequired, expectedRequired);
+    assert.equal(res.body.levelComplete, false);
+  }
 });

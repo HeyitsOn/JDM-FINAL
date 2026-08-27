@@ -1,6 +1,20 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const app = require('../app');
+const pool = require('../config/database');
+const { sessionStore } = require('../config/session');
+
+// Requiring ../app constructs a MySQLStore (clearExpired: true by default),
+// which starts its own setInterval independent of the pool. Without this,
+// running this file on its own (rather than together with
+// integration-local.test.js, which happens to close the same shared
+// instances via Node's module cache) leaves that timer running forever and
+// the process never exits. Wrapped defensively so it's harmless to also run
+// alongside integration-local.test.js, which does the same cleanup.
+test.after(() => {
+  try { sessionStore.close(); } catch { /* already closed */ }
+  pool.end().catch(() => { /* already closed */ });
+});
 
 function flattenRouteStack(router) {
   const results = [];
