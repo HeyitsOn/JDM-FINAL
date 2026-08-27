@@ -1,5 +1,6 @@
 const certificateService = require('../services/certificateService');
 const progressService = require('../services/progressService');
+const { SITE_URL } = require('../config');
 
 async function generateCertificate(req, res, next) {
   try {
@@ -39,7 +40,7 @@ async function generateCertificate(req, res, next) {
       issuedAt = created.issuedAt;
     }
 
-    const verifyUrl = `${process.env.SITE_URL || ''}/verify-certificate?code=${encodeURIComponent(code)}`;
+    const verifyUrl = `${SITE_URL}/verify-certificate?code=${encodeURIComponent(code)}`;
 
     res.render('certificate', {
       studentName: user.name,

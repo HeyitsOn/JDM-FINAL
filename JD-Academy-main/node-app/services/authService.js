@@ -8,6 +8,12 @@ async function register(req, { name, email, password }) {
     throw err;
   }
 
+  if (name.trim().length > 100) {
+    const err = new Error('Please enter your name.');
+    err.status = 422;
+    throw err;
+  }
+
   if (typeof email !== 'string' || !email.includes('@')) {
     const err = new Error('Please enter a valid email address.');
     err.status = 422;

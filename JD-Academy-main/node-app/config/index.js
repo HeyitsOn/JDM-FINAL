@@ -3,7 +3,9 @@ const dotenv = require('dotenv');
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const requiredEnv = ['SESSION_SECRET'];
+// Fail fast with a clear message rather than a cryptic MySQL connection
+// error surfacing later on the first request that touches the database.
+const requiredEnv = ['SESSION_SECRET', 'DB_NAME', 'DB_USER'];
 requiredEnv.forEach((name) => {
   if (!process.env[name]) {
     throw new Error(`Missing required environment variable: ${name}`);

@@ -20,7 +20,9 @@ async function login(req, res, next) {
 
 async function logout(req, res, next) {
   try {
-    res.json(await authService.logout(req));
+    const result = await authService.logout(req);
+    res.clearCookie('jdm_session', { path: '/' });
+    res.json(result);
   } catch (err) {
     next(err);
   }
