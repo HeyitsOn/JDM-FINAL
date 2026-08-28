@@ -970,3 +970,18 @@ Added tests for: the new name-length validation; logout actually clearing the co
 ### Status
 
 🟡 **STAGING READY — PRODUCTION DATABASE REQUIRED.** Unchanged from Stage 5's assessment, now on firmer ground: a second, independent pass against the PHP reference found and fixed three real gaps rather than finding none, and the test hang risk is fully closed (not just worked around for one invocation style). Still nothing this session could do about hosting verification or the A-Level/University content decision — both remain exactly as before.
+
+## Stage 7: Docker deployment path added and verified (2026-08-28)
+
+A `node-app/Dockerfile` existed uncommitted from an earlier session, referencing a `.dockerignore` and a "two paths" section in `DEPLOYMENT.md` that neither existed yet. Added the missing `.dockerignore`, documented Path B (Docker) in `DEPLOYMENT.md` §3b, then installed Docker Desktop and actually exercised the path rather than leaving it as an unverified Dockerfile:
+
+- `docker build` on `node-app/` succeeds; `npm audit` inside the image reports 0 vulnerabilities.
+- Built image run against a throwaway `mysql:8` container on a dedicated Docker network. `Backend/schema.sql` + `node-app/migrations/001_page_visits.sql` imported cleanly (5 tables, matching the count `DEPLOYMENT.md` §2 expects).
+- App container connected, `express-mysql-session` auto-created the `sessions` table (6th table, as expected), `/api/health` returned `{"status":"ok"}`, and the image's own `HEALTHCHECK` reported `healthy`.
+- Test containers and network torn down afterward; not left running.
+
+**Not covered by this pass:** an actual registration/login/quiz/certificate flow through the containerized app — only boot, DB connectivity, and health were exercised. Functional correctness of that flow was already established against a real (non-containerized) MySQL instance in Stage 5/6; this stage only verified that the container packaging itself doesn't break it.
+
+### Status
+
+🟡 **STAGING READY — PRODUCTION DATABASE REQUIRED.** Unchanged in substance from Stage 6. What changed: there are now two verified deployment paths instead of one undocumented Dockerfile and one cPanel path with an unconfirmed hosting prerequisite. The two blockers that no session can resolve without external input remain: whether Domains.co.za's cPanel plan supports "Setup Node.js App" (irrelevant if Docker is used instead), and the A-Level/University content decision.
