@@ -98,7 +98,7 @@ docker run -d --name jdm-academy \
 Notes:
 - The image runs as a non-root `nodeapp` user and declares a `HEALTHCHECK` that polls `/api/health` (see section 4) — `docker ps` shows the container's health status directly.
 - This container still needs a reachable MySQL database (steps in section 2 are unchanged); if MySQL runs in a separate container, set `DB_HOST` to that container's service name instead of `localhost`.
-- This path has not been verified with an actual `docker build`/`docker run` in this environment (no Docker available here) — the Dockerfile has only been reviewed, not executed. Verify locally before relying on it for a real deployment.
+- **Verified 2026-08-28**: `docker build` succeeds (0 `npm audit` vulnerabilities in the image), and the built image was run against a throwaway `mysql:8` container on a Docker network — `Backend/schema.sql` and `node-app/migrations/001_page_visits.sql` loaded cleanly, the app connected and booted, `express-mysql-session` auto-created the `sessions` table, `/api/health` returned `{"status":"ok",...}`, and the container's own `HEALTHCHECK` reported `healthy`. Not yet tested: registering a real user / completing a quiz through this container (only boot + DB connectivity + health were checked).
 
 ## 4. Health check
 
