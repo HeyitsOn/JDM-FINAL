@@ -78,6 +78,28 @@ npm start                 # or however the host's process manager invokes node s
 
 On cPanel's "Setup Node.js App": set the **Application root** to `node-app`, **Application startup file** to `server.js`, add each environment variable from the table above in the UI (not a committed `.env`), then use the panel's own "Run NPM Install" and "Restart" actions.
 
+## 3b. Alternative: Docker deployment (Path B)
+
+If Domains.co.za's cPanel plan turns out not to include "Setup Node.js App" (see the prerequisite warning at the top of this doc), or the target host changes to a VPS, Railway, Render, DigitalOcean App Platform, or any other host that runs Docker, use `node-app/Dockerfile` instead of steps 3–4 above:
+
+```bash
+cd node-app
+docker build -t jdm-academy .
+
+# Provide env vars the same way as section 1 -- either an env file or -e flags.
+# .env is never baked into the image (see node-app/.dockerignore), so it must
+# be supplied at run time, same as cPanel's env-var UI does for Path A.
+docker run -d --name jdm-academy \
+  --env-file .env \
+  -p 3000:3000 \
+  jdm-academy
+```
+
+Notes:
+- The image runs as a non-root `nodeapp` user and declares a `HEALTHCHECK` that polls `/api/health` (see section 4) — `docker ps` shows the container's health status directly.
+- This container still needs a reachable MySQL database (steps in section 2 are unchanged); if MySQL runs in a separate container, set `DB_HOST` to that container's service name instead of `localhost`.
+- This path has not been verified with an actual `docker build`/`docker run` in this environment (no Docker available here) — the Dockerfile has only been reviewed, not executed. Verify locally before relying on it for a real deployment.
+
 ## 4. Health check
 
 ```bash
