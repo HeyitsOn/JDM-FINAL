@@ -1,19 +1,10 @@
 # JDM Academy — Deployment Guide (Node.js application)
 
-## ⚠️ Unverified prerequisite — read this first
+**Target host: Render**, deploying the existing `node-app/Dockerfile` as a Render Web Service.
 
-The intended host is **Domains.co.za** cPanel hosting. That's the only fact currently known about it — nothing in this repo confirms the specific package on this specific account can run a persistent Node.js application, and this doc does not assume it can.
+cPanel is no longer a deployment target for the Node application (see `MIGRATION_AUDIT.md`'s Stage 8 for why: shared cPanel hosting only runs Node via an optional "Setup Node.js App" feature that was never confirmed to exist on the account this was originally scoped for, and Render removes that uncertainty entirely). `Backend/` — the original PHP implementation — remains untouched as reference only; it was never deployed via this doc and still isn't.
 
-Every existing deployment note in this repo (`Backend/SETUP-GUIDE.txt`) describes uploading **PHP** files to cPanel via `public_html` and running them under `MultiPHP Manager`. It never mentions Node.js, and nothing else in the repo confirms the target cPanel account can run a persistent Node.js application.
-
-Standard shared-hosting cPanel does **not** run Node apps the way it runs PHP. It requires a specific feature — usually called **"Setup Node.js App"** in cPanel, backed by Passenger/CloudLinux's Node.js Selector — which not every hosting plan includes, and whether Domains.co.za's plan for this account includes it hasn't been checked. Before anything below is useful, someone needs to check, in the actual cPanel panel for this account:
-
-- Does a **"Setup Node.js App"** icon exist under the Software section?
-- If yes: what Node version(s) does it offer? (this app needs **Node ≥ 20**, per `node-app/package.json`'s `engines` field)
-- Does the account have **shell/SSH access**, or is `npm install` only runnable through the cPanel Node App UI?
-- Can the app reach a MySQL database from wherever it runs (same host, typically `localhost`)?
-
-If "Setup Node.js App" isn't available, this isn't a code problem — it means either the hosting plan needs upgrading, or the target needs to change to something that natively runs Node (a VPS, Render, Railway, etc.). **Nobody should attempt the steps below until this is confirmed**, because "the app works locally" says nothing about whether it can run on this specific host at all.
+An earlier, unfinished attempt at deploying to Vercel (`node-app/api/index.js`, `node-app/vercel.json`) has been removed. Vercel's serverless model can't reach a MySQL database over `localhost`, and shared-hosting MySQL instances generally have no stable IP to allowlist for a serverless caller — see the exact reasoning if you need it, it's preserved in this session's chat, not repeated here since it no longer applies to the current, Render-based direction.
 
 ---
 
@@ -24,71 +15,72 @@ Every variable the app actually reads (`node-app/config/index.js`):
 | Variable | Required | Notes |
 |---|---|---|
 | `NODE_ENV` | yes | Must be `production` — controls secure-cookie behavior (`node-app/config/session.js`) |
-| `PORT` | no (defaults to 3000) | cPanel's Node App manager usually assigns/proxies this itself |
+| `PORT` | no (defaults to 3000) | Render's Docker runtime needs this set explicitly to match what the container listens on — see §5 |
 | `SESSION_SECRET` | **yes, app throws on boot without it** | Long random string. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Must be a fresh value — never reuse a development or example value |
-| `DB_HOST` | no (defaults to `localhost`) | |
+| `DB_HOST` | no (defaults to `localhost`, not valid in production — see §2) | |
 | `DB_PORT` | no (defaults to `3306`) | |
-| `DB_NAME` | no (defaults to `''`, i.e. effectively required in practice) | |
-| `DB_USER` | no (defaults to `''`) | |
-| `DB_PASS` | no (defaults to `''`) | |
-| `SITE_URL` | no (defaults to `http://localhost:3000`) | Must be the real public HTTPS domain in production — used to build certificate-verification links |
+| `DB_NAME` | **yes, app throws on boot without it** | |
+| `DB_USER` | **yes, app throws on boot without it** | |
+| `DB_PASS` | no (some setups legitimately have no password) | Note the actual variable name is `DB_PASS`, not `DB_PASSWORD` |
+| `DB_CONNECTION_LIMIT` | no (defaults to `10`) | See the comment in `node-app/config/database.js` for how to size this against your database provider's connection cap |
+| `SITE_URL` | no (defaults to `http://localhost:3000`, not valid in production) | Must be the real public HTTPS domain — used to build certificate-verification links |
 | `SESSION_LIFETIME` | no (defaults to 2592000s / 30 days) | |
 
-Template lives at `node-app/.env.example` — placeholders only, already confirmed `.gitignore`-protected (`git check-ignore -v node-app/.env` → matches). **Never commit a real `.env`.**
+Template lives at `node-app/.env.example` — placeholders only, already confirmed `.gitignore`-protected (`git check-ignore -v node-app/.env` → matches). **Never commit a real `.env`, and never enter real values into `render.yaml`** — the repo's `render.yaml` marks every secret-shaped variable `sync: false` on purpose so Render prompts for it in the dashboard instead of reading it from the file.
 
-## 2. Database deployment procedure
+## 2. Where the database lives
 
-Run in this exact order. Nothing here should ever be run against an unknown/existing database without first confirming it's the intended empty target — these are `CREATE`/`INSERT` statements, not destructive, but they assume a fresh database.
+Render has no first-party managed MySQL (it offers managed Postgres and Redis, not MySQL), so this app's MySQL instance has to live somewhere else. Two supported options, in order of what's actually simplest to run safely:
+
+**Option A — external managed MySQL (recommended).** Provision MySQL on a managed provider that gives you a public (SSL) hostname and port — e.g. PlanetScale, Aiven, AWS RDS, DigitalOcean Managed MySQL. Point `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASS` at it. This is the standard pattern for a Render web service that needs a database type Render doesn't host itself, and it comes with the provider's own backups/failover rather than you having to build that yourself.
+
+**Option B — self-hosted MySQL as a second Render service.** Render supports private services with a persistent disk attached, reachable from your web service over Render's private network without being exposed to the public internet. You'd run `mysql:8` (the same image `docker-compose.yml` already uses locally) as that private service, with the disk mounted at MySQL's data directory so data survives restarts/redeploys, and set `DB_HOST` to that service's internal hostname. This works, but you own backups, version upgrades, and restarts yourself — Option A trades a little cost for someone else owning that.
+
+Either way, the schema itself doesn't change:
 
 ```bash
-# 1. Create the database and a dedicated user (adjust names/password)
-mysql -u <admin> -p -e "
+# 1. Create the database and a dedicated user (adjust names/password) --
+#    run this against whichever MySQL host you chose above, from a client
+#    that can reach it (your own machine, if the provider allows remote
+#    connections, or a one-off shell against the Render private service).
+mysql -h <host> -P <port> -u <admin> -p -e "
   CREATE DATABASE jdmacad CHARACTER SET utf8mb4;
-  CREATE USER 'jdmuser'@'localhost' IDENTIFIED BY '<strong-password>';
-  GRANT ALL PRIVILEGES ON jdmacad.* TO 'jdmuser'@'localhost';
+  CREATE USER 'jdmuser'@'%' IDENTIFIED BY '<strong-password>';
+  GRANT ALL PRIVILEGES ON jdmacad.* TO 'jdmuser'@'%';
   FLUSH PRIVILEGES;
 "
-# On shared cPanel hosting without direct mysql CLI access, do the equivalent
-# via cPanel > MySQL Databases (create DB + user + "Add User to Database").
 
 # 2. Import the PHP reference schema (unmodified -- do not edit this file)
-mysql -u jdmuser -p jdmacad < Backend/schema.sql
+mysql -h <host> -P <port> -u jdmuser -p jdmacad < Backend/schema.sql
 
 # 3. Import the Node-only addition on top of it (page visits / bookmarks --
 #    deliberately kept separate from Backend/schema.sql so the PHP reference
 #    stays untouched; see MIGRATION_AUDIT.md's Stage 4 section for why)
-mysql -u jdmuser -p jdmacad < node-app/migrations/001_page_visits.sql
-
-# On cPanel without CLI access: phpMyAdmin > select the database > Import tab
-# > choose Backend/schema.sql > Go, then repeat for
-# node-app/migrations/001_page_visits.sql.
+mysql -h <host> -P <port> -u jdmuser -p jdmacad < node-app/migrations/001_page_visits.sql
 ```
 
 Expect exactly 5 tables afterward: `users`, `progress`, `level_requirements`, `certificates`, `page_visits`. A 6th table, `sessions`, is created automatically the first time the app starts (`express-mysql-session`'s `createDatabaseTable: true`) — don't create it manually.
 
-## 3. Application setup
+`'jdmuser'@'%'` (any host) is used above instead of `'jdmuser'@'localhost'` because the app connects from a different host than the database in both options above — narrow this to your Render service's actual egress if your provider exposes one.
+
+## 3. Local application setup (for development/testing, not deployment)
 
 ```bash
 cd node-app
-npm install --omit=dev   # or npm ci --omit=dev if package-lock.json is present
+npm install
 cp .env.example .env
-# edit .env with the real values from step 1 and step 2
-npm start                 # or however the host's process manager invokes node server.js
+# edit .env with real values -- a local MySQL instance is fine here
+npm run dev
 ```
 
-On cPanel's "Setup Node.js App": set the **Application root** to `node-app`, **Application startup file** to `server.js`, add each environment variable from the table above in the UI (not a committed `.env`), then use the panel's own "Run NPM Install" and "Restart" actions.
+## 4. Docker image
 
-## 3b. Alternative: Docker deployment (Path B)
-
-If Domains.co.za's cPanel plan turns out not to include "Setup Node.js App" (see the prerequisite warning at the top of this doc), or the target host changes to a VPS, Railway, Render, DigitalOcean App Platform, or any other host that runs Docker, use `node-app/Dockerfile` instead of steps 3–4 above:
+`node-app/Dockerfile` builds and runs the app the same way locally, in CI, or on Render:
 
 ```bash
 cd node-app
 docker build -t jdm-academy .
 
-# Provide env vars the same way as section 1 -- either an env file or -e flags.
-# .env is never baked into the image (see node-app/.dockerignore), so it must
-# be supplied at run time, same as cPanel's env-var UI does for Path A.
 docker run -d --name jdm-academy \
   --env-file .env \
   -p 3000:3000 \
@@ -96,20 +88,42 @@ docker run -d --name jdm-academy \
 ```
 
 Notes:
-- The image runs as a non-root `nodeapp` user and declares a `HEALTHCHECK` that polls `/api/health` (see section 4) — `docker ps` shows the container's health status directly.
-- This container still needs a reachable MySQL database (steps in section 2 are unchanged); if MySQL runs in a separate container, set `DB_HOST` to that container's service name instead of `localhost`.
-- **Verified 2026-08-28**: `docker build` succeeds (0 `npm audit` vulnerabilities in the image), and the built image was run against a throwaway `mysql:8` container on a Docker network — `Backend/schema.sql` and `node-app/migrations/001_page_visits.sql` loaded cleanly, the app connected and booted, `express-mysql-session` auto-created the `sessions` table, `/api/health` returned `{"status":"ok",...}`, and the container's own `HEALTHCHECK` reported `healthy`. Not yet tested: registering a real user / completing a quiz through this container (only boot + DB connectivity + health were checked).
+- The image runs as a non-root `nodeapp` user and declares a `HEALTHCHECK` that polls `/api/health` — `docker ps` shows the container's health status directly.
+- **Verified 2026-08-28**: `docker build` succeeds (0 `npm audit` vulnerabilities in the image), and the built image was run against a throwaway `mysql:8` container on a Docker network — `Backend/schema.sql` and `node-app/migrations/001_page_visits.sql` loaded cleanly, the app connected and booted, `express-mysql-session` auto-created the `sessions` table, `/api/health` returned `{"status":"ok",...}`, and the container's own `HEALTHCHECK` reported `healthy`. Not yet tested through this container: registering a real user / completing a quiz (only boot + DB connectivity + health were checked at that point — the full learner flow was separately verified against a non-containerized MySQL instance, see `MIGRATION_AUDIT.md` Stage 5).
 
-## 4. Health check
+## 5. Render deployment
+
+1. **Create the Render service.** In the Render dashboard, New → Web Service (or New → Blueprint if using the `render.yaml` at the repo root — check its field names against Render's current Blueprint schema before relying on it, since Render has changed the `env`/`runtime` key naming over time).
+2. **Connect the GitHub repository** (`OnikaBAU/Jj`) and pick the branch to deploy from.
+3. **Configure Docker.** Set the Dockerfile path to `node-app/Dockerfile` and the Docker build context to `node-app` (matches `render.yaml`'s `dockerfilePath`/`dockerContext` if using the Blueprint).
+4. **Configure environment variables** from the §1 table in the Render dashboard's Environment tab: `NODE_ENV=production`, `PORT=3000` (must match the Dockerfile's `EXPOSE`), `SESSION_SECRET` (fresh value, never reused), `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASS` (from §2), `DB_CONNECTION_LIMIT`, `SITE_URL` (the real `https://<your-service>.onrender.com` URL or custom domain — you'll know this once the service exists, so it may need setting after the first deploy), `SESSION_LIFETIME`.
+5. **Configure MySQL** per §2 — provision it before the first deploy, since the app throws on boot if `DB_NAME`/`DB_USER` are missing and fails every request if it can't connect.
+6. **Run/import the database schema** per §2's three `mysql` commands, against whichever host you provisioned.
+7. **Run migrations** — for this app, that's the single `node-app/migrations/001_page_visits.sql` file imported in the step above; there is no separate migration runner.
+8. **Deploy.** Trigger the first deploy (push to the connected branch, or use the dashboard's manual deploy).
+9. **Check logs** in the Render dashboard's Logs tab. On a healthy boot you should see the `server.js` startup line (`Server listening on http://localhost:<PORT> [production]`) and no uncaught errors. A missing/invalid `SESSION_SECRET` or bad DB credentials will throw immediately at boot — that's a deliberate fail-fast (`config/index.js`), not a hang.
+10. **Test the health endpoint:**
+    ```bash
+    curl https://<your-service>.onrender.com/api/health
+    # expect: {"status":"ok","uptime":<number>}
+    ```
+11. **Test authentication** — register a real account, then log in, against `/register` and `/login` (the contract `node-app/public/index.html` actually calls — see `routes/legacy.js`), and confirm `/session-check` reflects the logged-in state.
+12. **Test progress** — submit a quiz score via `/save-progress` while logged in, then confirm `/get-progress` reflects it, including that a lower repeat score doesn't overwrite a higher one (see `MIGRATION_AUDIT.md` Stage 5 for the exact behavior being verified).
+13. **Test certificates** — complete every topic required for a level (`level_requirements.required_topics`; Primary and O-Level are the two levels that can currently be completed in full, see §7 below), confirm `/generate-certificate?level=<level>` issues one, and confirm `/verify-certificate?code=<code>` validates it without requiring login.
+14. **Troubleshooting:**
+    - `/api/health` unreachable / service won't start → check logs (step 9) first; almost always a missing env var or a database the app can't reach yet.
+    - Database connection errors → confirm `DB_HOST`/`DB_PORT` are reachable from Render (not just from your own machine — a provider's IP allowlist or a private-network hostname only resolvable from inside Render are common gaps), and that the grant in §2 covers the host the connection actually comes from.
+    - Sessions not persisting across requests → confirm `NODE_ENV=production` is actually set (cookies are `secure: true` only in production, so an HTTPS deploy without it can silently drop the session cookie) and that `SITE_URL` matches the real origin the browser is using.
+    - Rate-limit errors on login/register from real users → `middleware/rateLimiter.js` caps auth endpoints at 10 attempts / 15 minutes per the limiter's own IP tracking; confirm `app.set('trust proxy', 1)` (`app.js`) is in effect, since without it behind Render's proxy every request can appear to come from the same address and share one limit.
+
+## 6. Health check
 
 ```bash
-curl https://<your-domain>/api/health
+curl https://<your-render-service>.onrender.com/api/health
 # expect: {"status":"ok","uptime":<number>}
 ```
 
-If this fails: check the app's error log (cPanel Node App UI has a log viewer) for a missing/invalid `SESSION_SECRET` (the app throws on boot without one) or a database connection error (wrong `DB_HOST`/`DB_PORT`/credentials, or the database user's host grant not matching where the Node process actually runs from).
-
-## 5. Production safety checklist
+## 7. Production safety checklist
 
 - [ ] `NODE_ENV=production` set (enables `secure: true` on the session cookie)
 - [ ] `SESSION_SECRET` is a fresh, production-specific random value
@@ -117,9 +131,9 @@ If this fails: check the app's error log (cPanel Node App UI has a log viewer) f
 - [ ] `DB_HOST`/`DB_NAME`/`DB_USER`/`DB_PASS` point at the real production database, not a local/dev one
 - [ ] `SITE_URL` is the real HTTPS domain, not `localhost`
 - [ ] `npm audit` clean (see `MIGRATION_AUDIT.md`)
-- [ ] `npm test` passing against the production-shaped database structure (the DB-dependent suite needs a real MySQL instance — see `MIGRATION_AUDIT.md`'s Stage 5 section for how this was verified against an isolated local instance; it has not been run against the actual production database, and shouldn't be until that database is confirmed safe to write test data into, or a separate staging database is used instead)
+- [ ] `npm test` passing against a production-shaped database structure (the DB-dependent suite needs a real MySQL instance — see `MIGRATION_AUDIT.md`'s Stage 5 section for how this was verified against an isolated local instance; it has not been run against the actual production database, and shouldn't be until that database is confirmed safe to write test data into, or a separate staging database is used instead)
 
-## 6. Known, intentional limitations at deployment time
+## 8. Known, intentional limitations at deployment time
 
 - **A-Level and University certificates cannot currently be earned** — `level_requirements.required_topics` (11 and 8) exceeds the number of quizzes that exist for those levels in any form, live or unbuilt placeholder (10 and 7). This is a **content decision**, not a deployment blocker for the rest of the app — Primary and O-Level work fully. See `MIGRATION_AUDIT.md`.
-- Sessions and rate-limit state are per-process; if the host ever runs multiple Node instances behind a load balancer, sessions are already MySQL-backed (safe), but the rate limiter's in-memory store is not shared across instances (each instance enforces its own limit independently). Not a concern for a single cPanel Node app instance.
+- Sessions are MySQL-backed (safe across multiple instances), but the rate limiter's in-memory store is not shared across instances — if Render is ever scaled to more than one instance of this service, each instance enforces the login/register rate limit independently rather than as one shared limit. Not a concern for a single-instance deploy.

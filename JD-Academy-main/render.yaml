@@ -1,0 +1,49 @@
+# Render Blueprint for JDM Academy.
+#
+# Render has no first-party managed MySQL, so this deploys only the app
+# itself, built from the existing node-app/Dockerfile. MySQL is external --
+# see DEPLOYMENT.md's "Render deployment" section for the supported options
+# and exactly which env vars to fill in via the Render dashboard.
+#
+# Render's Blueprint schema has used both `runtime` and (older) `env` for
+# this field over time. If the dashboard rejects `runtime: docker`, use
+# `env: docker` instead -- check the current schema at render.com/docs
+# before assuming either name is still current.
+services:
+  - type: web
+    name: jdm-academy
+    runtime: docker
+    dockerfilePath: node-app/Dockerfile
+    dockerContext: node-app
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Must match node-app/Dockerfile's EXPOSE and config/index.js's default.
+      # Render's Docker runtime needs this set explicitly -- it does not
+      # read the Dockerfile's EXPOSE line to auto-detect the port.
+      - key: PORT
+        value: "3000"
+      # Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+      # Set the real value in the Render dashboard -- never commit it here.
+      - key: SESSION_SECRET
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASS
+        sync: false
+      # Keep low -- see the comment in node-app/config/database.js for why.
+      - key: DB_CONNECTION_LIMIT
+        value: "10"
+      # The real public HTTPS Render URL (or custom domain), not localhost.
+      - key: SITE_URL
+        sync: false
+      - key: SESSION_LIFETIME
+        value: "2592000"

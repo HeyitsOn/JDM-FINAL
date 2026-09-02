@@ -985,3 +985,29 @@ A `node-app/Dockerfile` existed uncommitted from an earlier session, referencing
 ### Status
 
 🟡 **STAGING READY — PRODUCTION DATABASE REQUIRED.** Unchanged in substance from Stage 6. What changed: there are now two verified deployment paths instead of one undocumented Dockerfile and one cPanel path with an unconfirmed hosting prerequisite. The two blockers that no session can resolve without external input remain: whether Domains.co.za's cPanel plan supports "Setup Node.js App" (irrelevant if Docker is used instead), and the A-Level/University content decision.
+
+## Stage 8: Vercel prototype removed, Render adopted as the deployment target (2026-09-02)
+
+A separate, unfinished attempt at Vercel deployment had accumulated as uncommitted work: `node-app/api/index.js` (a serverless entry point re-exporting `app.js`) and `node-app/vercel.json` (routing everything to it). Neither had been committed. Removed both rather than finishing them — Vercel's serverless model can't reach this app's database in production: `DB_HOST` defaults to (and, for the cPanel target this was originally scoped for, would need to be) `localhost`, which only resolves when the Node process and MySQL share a host, and serverless functions don't run from a stable IP a shared-hosting MySQL instance could allowlist for remote access. This isn't a code defect, it's a mismatch between Vercel's execution model and where this app's database was always going to live.
+
+At the same time, cPanel was dropped as a target rather than left as an unresolved prerequisite. Stage 6/7 had already flagged that Domains.co.za's cPanel plan was never confirmed to support "Setup Node.js App," and that uncertainty is exactly what Render removes — Render always runs Node as a persistent process (via the existing, already-verified `node-app/Dockerfile`), so there's no hosting-plan feature to confirm first.
+
+### What changed
+
+- Deleted `node-app/api/index.js`, `node-app/vercel.json` (never committed, so nothing to revert in history).
+- `node-app/app.js`'s `trust proxy` setting and `node-app/config/database.js`'s `DB_CONNECTION_LIMIT` handling were kept — both were framed around Vercel/serverless in their comments, but the underlying behavior (correctly attributing client IPs behind a reverse proxy; a configurable pool size) is a real, host-agnostic production concern that applies to Render too. Only the comments were reworded to stop referencing Vercel/cPanel specifically.
+- Rewrote `DEPLOYMENT.md`: removed the cPanel "unverified prerequisite" section and the cPanel "Setup Node.js App" instructions entirely, restructured around Docker as the one deployment mechanism, and added a full Render deployment walkthrough (service creation through auth/progress/certificate verification and troubleshooting) plus an explicit explanation of where MySQL lives given Render has no first-party managed MySQL.
+- Added `render.yaml` at the repo root (a Blueprint describing the existing Dockerfile as a Render web service, with every secret-shaped env var marked `sync: false` so Render prompts for it in the dashboard rather than reading a committed value).
+- `Backend/` (PHP reference) and `Backend/SETUP-GUIDE.txt` (its cPanel upload instructions) were left untouched — they document the original PHP implementation's own deployment, which was never live and isn't part of this change.
+
+### What was not changed
+
+Routes, controllers, services, models, middleware, the database schema, and the test suite were not touched — none of them contained any cPanel- or Vercel-specific logic to begin with (confirmed by grep across `node-app/**/*.js` before making any change); the only host-specific code lived in the two config-file comments above and the now-removed Vercel entry point.
+
+### Tests
+
+Baseline run before this stage's changes (`node --test`, this machine): **2/2 passed** in `migration-smoke.test.js` (no DB dependency); **0/33 passed** in `integration-local.test.js`, all failing with `ER_ACCESS_DENIED_ERROR` for `'jdmuser'@'localhost'`. This machine's local `MySQL80` Windows service is running (confirmed via `Test-NetConnection` on port 3306), but doesn't have the `jdmuser` credentials `docker-compose.yml`'s MySQL *container* defines — a local environment gap, not a regression, and not touched by this stage since it's pre-existing and unrelated to the Vercel/cPanel/Render change. Not re-run after this stage's changes since none of them touch `app.js`/`config` in any way that changes runtime behavior (comment-only edits) or the database layer's logic — only `DEPLOYMENT.md`, `render.yaml`, and two comments changed.
+
+### Status
+
+🟡 **STAGING READY — PRODUCTION DATABASE REQUIRED.** Substantively unchanged from Stage 7: the application code and its verified behavior are the same. What changed is the deployment target itself — Render replaces both the unfinished Vercel attempt and the unconfirmed cPanel prerequisite, using the same Dockerfile already verified in Stage 7. Remaining blockers before a real production deploy: provisioning an actual MySQL instance Render can reach (see `DEPLOYMENT.md` §2 — Render has no managed MySQL of its own, so this requires either an external provider or a self-hosted Render private service) and the A-Level/University content decision, both unchanged from prior stages.
