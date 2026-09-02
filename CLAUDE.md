@@ -2,7 +2,9 @@
 
 The **only** target repository for this project is:
 
-`https://github.com/OnikaBAU/Jj.git`
+`https://github.com/HeyitsOn/JDM-FINAL.git`
+
+(Changed 2026-09-02 from `https://github.com/OnikaBAU/Jj.git` — the git credentials on this machine authenticate as GitHub user `HeyitsOn`, who had no write access to `OnikaBAU/Jj`. `JDM-FINAL`'s prior history — an earlier Vercel/TiDB-Serverless-oriented attempt — was force-pushed over with this repo's history at the time of the switch, by explicit instruction.)
 
 All work for the JDM Academy project — Node.js/Express source, routes, controllers, models, middleware, services, EJS views, frontend assets, CSS/JS, DB migrations/schema, auth, course/lesson/progress/certificate functionality, API endpoints, `.env.example` templates, tests, docs, README, fixes, refactors, and deployment config — must end up committed and pushed there. Nothing should exist only on the local machine when a task is considered done.
 
@@ -14,12 +16,12 @@ git branch --show-current
 git status
 ```
 
-`origin` must point to `https://github.com/OnikaBAU/Jj.git`. If not:
+`origin` must point to `https://github.com/HeyitsOn/JDM-FINAL.git`. If not:
 
 ```bash
-git remote set-url origin https://github.com/OnikaBAU/Jj.git
+git remote set-url origin https://github.com/HeyitsOn/JDM-FINAL.git
 # or, if no origin exists yet:
-git remote add origin https://github.com/OnikaBAU/Jj.git
+git remote add origin https://github.com/HeyitsOn/JDM-FINAL.git
 ```
 
 Never create or push to a different project repository.
@@ -51,8 +53,8 @@ Never commit `.env`, DB passwords, API keys, private keys, session secrets, acce
 3. Key functionality verified.
 4. Changes committed.
 5. Changes pushed.
-6. `origin` points to `OnikaBAU/Jj`.
+6. `origin` points to `HeyitsOn/JDM-FINAL`.
 7. `git status` clean (or only intentionally-ignored/local files).
-8. `git clone https://github.com/OnikaBAU/Jj.git` reproduces the current implementation.
+8. `git clone https://github.com/HeyitsOn/JDM-FINAL.git` reproduces the current implementation.
 
-> If it's part of the JDM Academy application, it must end up in `OnikaBAU/Jj`. Local files are never the final destination.
+> If it's part of the JDM Academy application, it must end up in `HeyitsOn/JDM-FINAL`. Local files are never the final destination.
