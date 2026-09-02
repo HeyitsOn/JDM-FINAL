@@ -13,8 +13,8 @@ services:
   - type: web
     name: jdm-academy
     runtime: docker
-    dockerfilePath: node-app/Dockerfile
-    dockerContext: node-app
+    dockerfilePath: JD-Academy-main/node-app/Dockerfile
+    dockerContext: JD-Academy-main/node-app
     plan: starter
     healthCheckPath: /api/health
     envVars:
