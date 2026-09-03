@@ -379,13 +379,6 @@ body{background:linear-gradient(160deg,var(--acc-d) 0%,var(--bg) 40%,var(--bg) 1
 
 <!-- ==================== TOPBAR ==================== -->
 <div id="topbar">
-  <a class="tb-brand" href="#homepage" data-nav="homepage" onclick="doNav(event,this)">
-    <div class="brand-logo">JDM</div>
-    <div class="brand-info">
-      <div class="brand-name">JDM <em>Academy</em></div>
-      <div class="brand-sub">Just Do Maths — Free for All</div>
-    </div>
-  </a>
   <button id="menu-btn" onclick="toggleSidebar()" aria-label="Menu">☰</button>
   <div class="tb-search">
     <div class="search-inner">
@@ -413,7 +406,7 @@ body{background:linear-gradient(160deg,var(--acc-d) 0%,var(--bg) 40%,var(--bg) 1
 <nav id="sidebar">
 <div id="sidebar-scroll">
 
-  <!-- User card -->
+  <!-- User card
   <div class="user-card logged-out" id="user-card">
     <div class="uc-guest">
       <div class="uc-guest-icon">🎓</div>
@@ -436,8 +429,9 @@ body{background:linear-gradient(160deg,var(--acc-d) 0%,var(--bg) 40%,var(--bg) 1
       <div class="xp-bar"><div class="xp-fill" id="xp-fill" style="width:48%"></div></div>
     </div>
   </div>
+  -->
 
-  <!-- Progress card -->
+  <!-- Progress card
   <div class="prog-card">
     <div class="prog-label">Currently studying</div>
     <div class="prog-course" id="prog-course">O Level Mathematics — IGCSE</div>
@@ -447,6 +441,7 @@ body{background:linear-gradient(160deg,var(--acc-d) 0%,var(--bg) 40%,var(--bg) 1
       <span class="prog-lessons">3 / 9 topics</span>
     </div>
   </div>
+  -->
 
   <!-- Streak -->
   <div class="streak-row">
@@ -597,22 +592,6 @@ body{background:linear-gradient(160deg,var(--acc-d) 0%,var(--bg) 40%,var(--bg) 1
     </a>
     <a class="nav-link" data-nav="uni-abstract-algebra" href="#uni-abstract-algebra" onclick="doNav(event,this)">
       <div class="nav-icon">🔲</div>Abstract Algebra
-    </a>
-    <a class="nav-link" data-nav="uni-calculus" href="#uni-calculus" onclick="doNav(event,this)">
-      <div class="nav-icon">∫</div>Multivariable Calculus
-      <span class="nav-tag-pro">SOON</span>
-    </a>
-    <a class="nav-link" data-nav="uni-complex" href="#uni-complex" onclick="doNav(event,this)">
-      <div class="nav-icon">ℂ</div>Complex Analysis
-      <span class="nav-tag-pro">SOON</span>
-    </a>
-    <a class="nav-link" data-nav="uni-number-theory" href="#uni-number-theory" onclick="doNav(event,this)">
-      <div class="nav-icon">🔑</div>Number Theory
-      <span class="nav-tag-pro">SOON</span>
-    </a>
-    <a class="nav-link" data-nav="uni-differential-eq" href="#uni-differential-eq" onclick="doNav(event,this)">
-      <div class="nav-icon">〜</div>Differential Equations
-      <span class="nav-tag-pro">SOON</span>
     </a>
   </div>
 
@@ -33574,12 +33553,14 @@ function updateUIForUser(){
   }
   // sidebar user card
   const card = document.getElementById('user-card');
-  if(loggedIn){
-    card.classList.remove('logged-out'); card.classList.add('logged-in');
-    document.getElementById('uc-name').textContent  = currentUser.name  || 'Student';
-    document.getElementById('uc-email').textContent = currentUser.email || '';
-  } else {
-    card.classList.add('logged-out'); card.classList.remove('logged-in');
+  if(card){
+    if(loggedIn){
+      card.classList.remove('logged-out'); card.classList.add('logged-in');
+      document.getElementById('uc-name').textContent  = currentUser.name  || 'Student';
+      document.getElementById('uc-email').textContent = currentUser.email || '';
+    } else {
+      card.classList.add('logged-out'); card.classList.remove('logged-in');
+    }
   }
   // logout link
   document.getElementById('logout-link').style.display = loggedIn ? '' : 'none';
@@ -33593,9 +33574,12 @@ function show(key){
   document.querySelectorAll('.nav-link[data-nav]').forEach(a=>a.classList.toggle('active', a.dataset.nav===key));
   const meta = PAGE_META[key] || {label:key, course:key, pct:0};
   document.getElementById('bc-page').textContent   = meta.label;
-  document.getElementById('prog-course').textContent = meta.course;
-  document.getElementById('prog-fill').style.width  = meta.pct+'%';
-  document.getElementById('prog-pct').textContent   = meta.pct+'% complete';
+  const progCourse = document.getElementById('prog-course');
+  const progFill = document.getElementById('prog-fill');
+  const progPct = document.getElementById('prog-pct');
+  if(progCourse) progCourse.textContent = meta.course;
+  if(progFill) progFill.style.width = meta.pct+'%';
+  if(progPct) progPct.textContent = meta.pct+'% complete';
   if(location.hash.slice(1)!==key) history.replaceState(null,'','#'+key);
   currentPage = key;
   document.getElementById('sidebar').classList.remove('open');
