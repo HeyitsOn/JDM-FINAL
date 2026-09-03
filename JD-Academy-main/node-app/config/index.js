@@ -23,5 +23,6 @@ module.exports = {
   DB_USER: process.env.DB_USER || '',
   DB_PASS: process.env.DB_PASS || '',
   DB_CONNECTION_LIMIT: Number(process.env.DB_CONNECTION_LIMIT || 10),
+  DB_SSL: process.env.DB_SSL === 'true',
   SITE_URL: process.env.SITE_URL || 'http://localhost:3000'
 };

@@ -42,6 +42,10 @@ services:
       # Keep low -- see the comment in node-app/config/database.js for why.
       - key: DB_CONNECTION_LIMIT
         value: "10"
+      # 'true' for TiDB Serverless / most managed MySQL-compatible hosts
+      # (they require TLS). Leave unset if self-hosting MySQL yourself.
+      - key: DB_SSL
+        sync: false
       # The real public HTTPS Render URL (or custom domain), not localhost.
       - key: SITE_URL
         sync: false

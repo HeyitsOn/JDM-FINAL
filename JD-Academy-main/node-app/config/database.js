@@ -1,5 +1,5 @@
 const mysql = require('mysql2/promise');
-const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS, DB_CONNECTION_LIMIT } = require('./index');
+const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS, DB_CONNECTION_LIMIT, DB_SSL } = require('./index');
 
 // Render runs this as a single persistent process (like Docker), so one pool
 // with the default limit of 10 is fine. DB_CONNECTION_LIMIT stays
@@ -17,7 +17,12 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: DB_CONNECTION_LIMIT,
   queueLimit: 0,
-  charset: 'utf8mb4'
+  charset: 'utf8mb4',
+  // TiDB Serverless (and most managed MySQL-compatible hosts) require TLS.
+  // cPanel/Docker MySQL don't, so this stays opt-in via DB_SSL rather than
+  // always-on. Node's default trusted CA bundle is enough -- these hosts use
+  // publicly trusted certificates, not self-signed ones.
+  ssl: DB_SSL ? { minVersion: 'TLSv1.2' } : undefined
 });
 
 module.exports = pool;
