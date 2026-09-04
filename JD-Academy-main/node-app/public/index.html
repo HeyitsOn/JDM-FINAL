@@ -393,7 +393,7 @@ body{background:linear-gradient(160deg,var(--acc-d) 0%,var(--bg) 40%,var(--bg) 1
     <button class="login-btn" id="topbar-login" onclick="openModal('login')">Log In</button>
     <button class="signup-btn" id="topbar-signup" onclick="openModal('register')">Sign Up Free</button>
     <button class="login-btn donate-btn" style="background:rgba(227,25,55,.12);border-color:rgba(227,25,55,.35);color:#ff6b7a;" onclick="show('donate')">❤️ Donate</button>
-    <div class="avatar" id="topbar-avatar" style="display:none" title="My Account" onclick="toast('👤','Profile coming soon!')">
+    <div class="avatar" id="topbar-avatar" style="display:none" title="My Account" onclick="openProfile()">
       <span id="avatar-initials">JD</span>
     </div>
   </div>
@@ -33433,6 +33433,29 @@ document.addEventListener(&#x27;keydown&#x27;,function(e){ if(e.key===&#x27;Esca
   </div>
 </div>
 
+<!-- ==================== PROFILE MODAL ==================== -->
+<div class="modal-overlay" id="modal-profile" onclick="closeModalOut(event,'profile')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">My Profile</div>
+      <button class="modal-close" onclick="closeModal('profile')">&times;</button>
+    </div>
+    <p class="modal-sub">Your JDM Academy account.</p>
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <div class="form-input" id="profile-name" style="cursor:default;"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email address</label>
+      <div class="form-input" id="profile-email" style="cursor:default;"></div>
+    </div>
+    <button class="form-submit" onclick="location.href='/my-certificates';">View My Certificates</button>
+    <div class="form-footer">
+      <a onclick="closeModal('profile'); doLogout(event)">Log Out</a>
+    </div>
+  </div>
+</div>
+
 <!-- ==================== TOAST ==================== -->
 <div id="toast"><div class="toast-icon" id="toast-icon">✅</div><span id="toast-msg">Done!</span></div>
 
@@ -33658,6 +33681,12 @@ function closeModalOut(ev, name){
 }
 function switchModal(from, to){
   closeModal(from); openModal(to);
+}
+function openProfile(){
+  if(!currentUser) return;
+  document.getElementById('profile-name').textContent  = currentUser.name  || '';
+  document.getElementById('profile-email').textContent = currentUser.email || '';
+  openModal('profile');
 }
 function requireLogin(ev, msg){
   ev.preventDefault();
