@@ -349,6 +349,34 @@ body{background:linear-gradient(160deg,var(--acc-d) 0%,var(--bg) 40%,var(--bg) 1
 #toast.show{transform:translateY(0);opacity:1;}
 .toast-icon{font-size:1.1rem;}
 
+/* ===================== WHATSAPP CHAT WIDGET ===================== */
+.wa-widget{
+  position:fixed;bottom:22px;right:22px;z-index:500;
+  display:flex;flex-direction:column;align-items:flex-end;gap:12px;
+}
+.wa-fab{
+  width:56px;height:56px;border-radius:50%;border:none;
+  background:#25D366;color:#04241a;font-size:1.5rem;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);cursor:pointer;
+  transition:transform .2s;
+}
+.wa-fab:hover{transform:scale(1.08);}
+.wa-panel{
+  display:none;width:270px;max-width:calc(100vw - 44px);
+  background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;
+  padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.5);color:var(--txt);
+}
+.wa-panel.open{display:block;}
+.wa-panel h4{margin:0 0 6px;font-size:1rem;font-weight:800;}
+.wa-panel p{margin:0 0 14px;font-size:.8rem;color:var(--txt3);line-height:1.4;}
+.wa-panel .wa-cta{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  background:#25D366;color:#04241a;font-weight:700;
+  padding:.7rem 1rem;border-radius:999px;text-decoration:none;font-size:.85rem;
+}
+.wa-panel .wa-phone{margin-top:10px;text-align:center;font-size:.75rem;color:var(--txt3);}
+
 /* ===================== MOBILE ===================== */
 @media(max-width:800px){
   :root{--sb:256px;}
@@ -33459,6 +33487,17 @@ document.addEventListener(&#x27;keydown&#x27;,function(e){ if(e.key===&#x27;Esca
 <!-- ==================== TOAST ==================== -->
 <div id="toast"><div class="toast-icon" id="toast-icon">✅</div><span id="toast-msg">Done!</span></div>
 
+<!-- ==================== WHATSAPP CHAT WIDGET ==================== -->
+<div class="wa-widget">
+  <div class="wa-panel" id="wa-panel">
+    <h4>Need Guidance?</h4>
+    <p>Get personalized help from the mathematician himself. Reach out directly on WhatsApp.</p>
+    <a class="wa-cta" href="https://wa.me/27746764737" target="_blank" rel="noopener">💬 Contact the Mathematician Now</a>
+    <div class="wa-phone">+27 74 676 4737</div>
+  </div>
+  <button class="wa-fab" onclick="toggleWaChat()" aria-label="Chat with us on WhatsApp" title="Need guidance? Chat with us">💬</button>
+</div>
+
 <!-- ==================== SCRIPTS ==================== -->
 <script>
 // ===================================================
@@ -33637,6 +33676,13 @@ window.addEventListener('hashchange', fromHash);
 // ===================================================
 function toggleSidebar(){
   document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ===================================================
+// WHATSAPP CHAT WIDGET
+// ===================================================
+function toggleWaChat(){
+  document.getElementById('wa-panel').classList.toggle('open');
 }
 
 // ===================================================
